@@ -10,7 +10,7 @@ Last Updated: 2026-10-22
 | **Database Schema & Migrations** | Completed | 16 PostgreSQL tables, RLS policies, synthetic seed data in `supabase/` |
 | **Authentication & RBAC** | Completed | Supabase SSR client + 4 role profiles (owner, admin, doctor, receptionist) |
 | **Bilingual UI (AR RTL / EN LTR)** | Completed | I18n provider, direction switcher, complete Arabic & English dictionary |
-| **Patient CRM** | Completed | CRUD, live search, duplicate detection, WhatsApp consent tracking |
+| **Patient CRM** | Completed | CRUD, live search, duplicate detection, WhatsApp consent tracking, Bulk Excel/CSV import with preview & template |
 | **Clinic Settings & Services** | Completed | Service catalog with pricing/duration, clinic config screen |
 | **Appointment Scheduling & Calendar**| Completed | Booking engine, conflict prevention logic, status filtering |
 | **Payments & Balances** | Completed | Financial ledger, payment methods, CSV export |
