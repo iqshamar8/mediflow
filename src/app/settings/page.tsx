@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n/context";
-import { Settings, Save, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { useTheme } from "@/lib/theme/context";
+import { Settings, Save, ShieldCheck, CheckCircle2, Sun, Moon, Laptop } from "lucide-react";
 
 export default function SettingsPage() {
   const { t } = useI18n();
+  const { theme, setTheme } = useTheme();
   const [saved, setSaved] = useState(false);
   const [formData, setFormData] = useState({
     clinicName: "عيادة النور الطبية التخصصية (Al-Noor Clinic)",
@@ -133,6 +135,58 @@ export default function SettingsPage() {
                 <label htmlFor="rem2h" className="text-sm font-medium cursor-pointer">
                   إرسال تذكير تأكيدي قبل ساعتين من وقت الموعد
                 </label>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>مظهر النظام والوضع الليلي (Appearance & Night Mode)</CardTitle>
+              <CardDescription>اختر النمط البصري المريح لعينيك أثناء إدارة العيادة</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setTheme("light")}
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                    theme === "light"
+                      ? "border-primary bg-primary/10 text-primary shadow-sm"
+                      : "border-border hover:border-muted-foreground/40 text-muted-foreground"
+                  }`}
+                >
+                  <Sun className="w-6 h-6 mb-2" />
+                  <span className="font-semibold text-sm">الوضع النهاري</span>
+                  <span className="text-[11px] text-muted-foreground mt-0.5">Light Mode</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTheme("dark")}
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                    theme === "dark"
+                      ? "border-primary bg-primary/10 text-primary shadow-sm"
+                      : "border-border hover:border-muted-foreground/40 text-muted-foreground"
+                  }`}
+                >
+                  <Moon className="w-6 h-6 mb-2" />
+                  <span className="font-semibold text-sm">الوضع الليلي</span>
+                  <span className="text-[11px] text-muted-foreground mt-0.5">Night Mode</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTheme("system")}
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                    theme === "system"
+                      ? "border-primary bg-primary/10 text-primary shadow-sm"
+                      : "border-border hover:border-muted-foreground/40 text-muted-foreground"
+                  }`}
+                >
+                  <Laptop className="w-6 h-6 mb-2" />
+                  <span className="font-semibold text-sm">تلقائي حسب الجهاز</span>
+                  <span className="text-[11px] text-muted-foreground mt-0.5">System Default</span>
+                </button>
               </div>
             </CardContent>
           </Card>

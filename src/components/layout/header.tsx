@@ -2,12 +2,14 @@
 
 import React from "react";
 import { useI18n } from "@/lib/i18n/context";
+import { useTheme } from "@/lib/theme/context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Globe, Bell, User, MessageSquare } from "lucide-react";
+import { Globe, Bell, User, Sun, Moon } from "lucide-react";
 
 export function Header() {
   const { language, setLanguage, t } = useI18n();
+  const { isDark, toggleTheme } = useTheme();
 
   return (
     <header className="h-16 border-b bg-card/60 backdrop-blur px-6 flex items-center justify-between sticky top-0 z-30">
@@ -23,7 +25,28 @@ export function Header() {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
+        {/* Night Mode / Theme Toggle */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2 font-medium"
+          onClick={toggleTheme}
+          title={isDark ? "تفعيل الوضع النهاري (Light Mode)" : "تفعيل الوضع الليلي (Dark Mode)"}
+        >
+          {isDark ? (
+            <>
+              <Sun className="h-4 w-4 text-amber-400" />
+              <span className="hidden sm:inline">الوضع النهاري</span>
+            </>
+          ) : (
+            <>
+              <Moon className="h-4 w-4 text-slate-700" />
+              <span className="hidden sm:inline">الوضع الليلي</span>
+            </>
+          )}
+        </Button>
+
         {/* Language Switcher */}
         <Button
           variant="outline"
