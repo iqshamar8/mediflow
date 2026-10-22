@@ -7,13 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n/context";
-import { PlusCircle, Search, User, Phone, Calendar, CheckCircle2, X } from "lucide-react";
+import { PlusCircle, Search, User, Phone, Calendar, CheckCircle2, X, FileSpreadsheet } from "lucide-react";
+import { PatientImportDialog } from "@/components/patients/patient-import-dialog";
 
 export default function PatientsPage() {
   const { t } = useI18n();
   const [patients, setPatients] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     full_name: "",
     phone: "",
@@ -95,10 +97,20 @@ export default function PatientsPage() {
               إدارة السجلات الطبية وبيانات المرضى والتواصل عبر الواتساب
             </p>
           </div>
-          <Button onClick={() => setIsModalOpen(true)} className="gap-2">
-            <PlusCircle className="w-4 h-4" />
-            <span>{t("addPatient")}</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsImportModalOpen(true)}
+              className="gap-2 border-emerald-600/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>استيراد ملف (Excel / CSV)</span>
+            </Button>
+            <Button onClick={() => setIsModalOpen(true)} className="gap-2">
+              <PlusCircle className="w-4 h-4" />
+              <span>{t("addPatient")}</span>
+            </Button>
+          </div>
         </div>
 
         {/* Search input */}
@@ -280,6 +292,13 @@ export default function PatientsPage() {
             </div>
           </div>
         )}
+
+        {/* Patient Batch Import Dialog (Excel / CSV) */}
+        <PatientImportDialog
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onImportSuccess={fetchPatients}
+        />
       </div>
     </AppLayout>
   );
