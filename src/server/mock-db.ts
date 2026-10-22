@@ -63,6 +63,17 @@ export interface WhatsAppMessage {
   created_at: string;
 }
 
+export interface ConversationSession {
+  phone: string;
+  step: "idle" | "awaiting_service" | "awaiting_name" | "awaiting_time" | "awaiting_confirmation";
+  patientName?: string;
+  selectedServiceId?: string;
+  selectedServiceName?: string;
+  proposedTime?: string;
+  notes?: string;
+  lastInteraction: string;
+}
+
 // Global in-memory storage to survive hot-reloads during dev session
 declare global {
   // eslint-disable-next-line no-var
@@ -72,6 +83,7 @@ declare global {
     appointments: Appointment[];
     payments: Payment[];
     messages: WhatsAppMessage[];
+    sessions: Record<string, ConversationSession>;
   } | undefined;
 }
 
@@ -221,6 +233,7 @@ function initDb() {
         created_at: new Date(Date.now() - 3600000 * 3 + 10000).toISOString(),
       },
     ],
+    sessions: {},
   };
 
   return global.__mediflow_db;
