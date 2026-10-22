@@ -7,22 +7,51 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n/context";
-import { CalendarPlus, Clock, CheckCircle2, AlertTriangle, X, Filter } from "lucide-react";
+import {
+  CalendarPlus,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  Search,
+  Filter,
+  Edit3,
+  XCircle,
+  Check,
+  User,
+  MoreVertical,
+  Calendar,
+} from "lucide-react";
 
 export default function AppointmentsPage() {
   const { t } = useI18n();
   const [appointments, setAppointments] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  // New Appointment Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     patient_id: "",
     service_id: "",
     start_time: "",
     notes: "",
   });
+
+  // Edit Appointment Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingApt, setEditingApt] = useState<any | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    service_id: "",
+    start_time: "",
+    notes: "",
+    status: "",
+  });
+
   const [errorMsg, setErrorMsg] = useState("");
+  const [editErrorMsg, setEditErrorMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -56,6 +85,7 @@ export default function AppointmentsPage() {
     }
   }
 
+  // 1. Book New Appointment
   async function handleBookAppointment(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg("");
@@ -77,6 +107,7 @@ export default function AppointmentsPage() {
 
       await loadData();
       setIsModalOpen(false);
+      setFormData((prev) => ({ ...prev, notes: "", start_time: "" }));
     } catch {
       setErrorMsg("حدث خطأ في الاتصال");
     } finally {
@@ -84,9 +115,95 @@ export default function AppointmentsPage() {
     }
   }
 
+  // 2. Open Edit Modal
+  function handleOpenEdit(apt: any) {
+    setEditingApt(apt);
+    // Format date string to YYYY-MM-DDTHH:mm for datetime-local
+    const d = new Date(apt.start_time);
+    const localIso = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 16);
+
+    setEditFormData({
+      service_id: apt.service_id,
+      start_time: localIso,
+      notes: apt.notes || "",
+      status: apt.status,
+    });
+    setEditErrorMsg("");
+    setIsEditModalOpen(true);
+  }
+
+  // 3. Save Edited Appointment (Reschedule / Update)
+  async function handleSaveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingApt) return;
+
+    setEditErrorMsg("");
+    setIsLoading(true);
+
+    try {
+      const res = await fetch("/api/appointments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingApt.id,
+          service_id: editFormData.service_id,
+          start_time: new Date(editFormData.start_time).toISOString(),
+          notes: editFormData.notes,
+          status: editFormData.status,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        setEditErrorMsg(errorData.error || "فشل تحديث الموعد");
+        setIsLoading(false);
+        return;
+      }
+
+      await loadData();
+      setIsEditModalOpen(false);
+      setEditingApt(null);
+    } catch {
+      setEditErrorMsg("حدث خطأ أثناء حفظ التعديلات");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // 4. Quick Status Change (Confirm, Cancel, Complete, No Show)
+  async function handleQuickStatusChange(id: string, newStatus: string) {
+    try {
+      const res = await fetch("/api/appointments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+
+      if (res.ok) {
+        await loadData();
+      }
+    } catch {
+      // Error
+    }
+  }
+
+  // Filter by search name/phone/service and dropdown status
   const filteredAppointments = appointments.filter((apt) => {
-    if (statusFilter === "all") return true;
-    return apt.status === statusFilter;
+    // Status filter
+    if (statusFilter !== "all" && apt.status !== statusFilter) {
+      return false;
+    }
+    // Search query filter (by patient name, phone, or service)
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const nameMatch = apt.patient_name?.toLowerCase().includes(q);
+      const phoneMatch = apt.patient_phone?.includes(q);
+      const srvMatch = apt.service_name?.toLowerCase().includes(q);
+      return nameMatch || phoneMatch || srvMatch;
+    }
+    return true;
   });
 
   return (
@@ -97,7 +214,7 @@ export default function AppointmentsPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{t("navAppointments")}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              جدول المواعيد اليومية، فحص التعارض الزمني، ومزامنة الحجوزات
+              إدارة وتأكيد وتعديل وإلغاء المواعيد، مع فحص التعارض الزمني
             </p>
           </div>
           <Button onClick={() => setIsModalOpen(true)} className="gap-2">
@@ -106,89 +223,206 @@ export default function AppointmentsPage() {
           </Button>
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2">
-          <Button
-            size="sm"
-            variant={statusFilter === "all" ? "default" : "outline"}
-            onClick={() => setStatusFilter("all")}
-          >
-            {t("all")} ({appointments.length})
-          </Button>
-          <Button
-            size="sm"
-            variant={statusFilter === "confirmed" ? "default" : "outline"}
-            onClick={() => setStatusFilter("confirmed")}
-          >
-            {t("statusConfirmed")}
-          </Button>
-          <Button
-            size="sm"
-            variant={statusFilter === "pending" ? "default" : "outline"}
-            onClick={() => setStatusFilter("pending")}
-          >
-            {t("statusPending")}
-          </Button>
-        </div>
-
-        {/* Appointments Table */}
+        {/* Filter and Search Bar Card */}
         <Card>
-          <CardHeader>
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row items-center gap-3">
+              {/* Search by Patient Name or Phone */}
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 absolute top-3 start-3 text-muted-foreground" />
+                <Input
+                  placeholder="ابحث باسم المريض، رقم الهاتف، أو اسم الخدمة..."
+                  className="ps-10"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+
+              {/* Status Dropdown Filter */}
+              <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
+                <Filter className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span className="text-xs font-semibold text-muted-foreground shrink-0">تصفية الحالة:</span>
+                <select
+                  className="flex h-9 rounded-md border border-input bg-card px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-primary w-full md:w-48"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="all">جميع الحالات ({appointments.length})</option>
+                  <option value="confirmed">المؤكدة فقط (Confirmed)</option>
+                  <option value="pending">قيد الانتظار (Pending)</option>
+                  <option value="completed">المكتملة (Completed)</option>
+                  <option value="cancelled">الملغاة (Cancelled)</option>
+                  <option value="no_show">لم يحضر (No Show)</option>
+                </select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Appointments Table Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between py-4">
             <CardTitle className="text-base font-semibold">
-              المواعيد المجدولة ({filteredAppointments.length})
+              المواعيد ({filteredAppointments.length})
             </CardTitle>
+            {statusFilter !== "all" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-primary"
+                onClick={() => setStatusFilter("all")}
+              >
+                إلغاء التصفية
+              </Button>
+            )}
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-start">
-                <thead className="text-xs uppercase bg-secondary/50 text-muted-foreground border-b">
+                <thead className="text-xs uppercase bg-secondary/60 text-muted-foreground border-y">
                   <tr>
                     <th className="py-3 px-4 text-start font-medium">{t("patientName")}</th>
                     <th className="py-3 px-4 text-start font-medium">{t("phoneNumber")}</th>
                     <th className="py-3 px-4 text-start font-medium">{t("service")}</th>
                     <th className="py-3 px-4 text-start font-medium">{t("dateTime")}</th>
-                    <th className="py-3 px-4 text-start font-medium">{t("duration")}</th>
                     <th className="py-3 px-4 text-start font-medium">{t("status")}</th>
                     <th className="py-3 px-4 text-start font-medium">المصدر</th>
+                    <th className="py-3 px-4 text-center font-medium">الإجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filteredAppointments.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-muted-foreground">
-                        لا توجد مواعيد مسجلة
+                      <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                        لا توجد مواعيد مطابقة لخيارات البحث والتصفية.
                       </td>
                     </tr>
                   ) : (
                     filteredAppointments.map((apt) => (
                       <tr key={apt.id} className="hover:bg-muted/40 transition-colors">
+                        {/* Patient Name */}
                         <td className="py-3 px-4 font-semibold text-foreground">
-                          {apt.patient_name}
-                        </td>
-                        <td className="py-3 px-4 text-muted-foreground font-mono" dir="ltr">
-                          {apt.patient_phone || "—"}
-                        </td>
-                        <td className="py-3 px-4 font-medium text-foreground">
-                          {apt.service_name}
-                        </td>
-                        <td className="py-3 px-4 text-muted-foreground">
-                          <div className="flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-primary" />
-                            <span>{new Date(apt.start_time).toLocaleString("ar-IQ", { dateStyle: "short", timeStyle: "short" })}</span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">
+                              <User className="w-3.5 h-3.5" />
+                            </div>
+                            <span>{apt.patient_name}</span>
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-muted-foreground">
-                          {apt.duration_minutes} دقيقة
+
+                        {/* Phone */}
+                        <td className="py-3 px-4 text-muted-foreground font-mono text-xs" dir="ltr">
+                          {apt.patient_phone || "—"}
                         </td>
+
+                        {/* Service */}
+                        <td className="py-3 px-4 font-medium text-foreground text-xs">
+                          {apt.service_name}
+                        </td>
+
+                        {/* Date & Time */}
+                        <td className="py-3 px-4 text-muted-foreground text-xs">
+                          <div className="flex items-center gap-1.5 font-sans">
+                            <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
+                            <span>
+                              {new Date(apt.start_time).toLocaleString("ar-IQ", {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              })}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Status Badge */}
                         <td className="py-3 px-4">
-                          <Badge variant={apt.status === "confirmed" ? "success" : "warning"}>
-                            {apt.status === "confirmed" ? t("statusConfirmed") : t("statusPending")}
+                          <Badge
+                            variant={
+                              apt.status === "confirmed"
+                                ? "success"
+                                : apt.status === "completed"
+                                ? "default"
+                                : apt.status === "cancelled" || apt.status === "no_show"
+                                ? "destructive"
+                                : "warning"
+                            }
+                            className="text-xs"
+                          >
+                            {apt.status === "confirmed"
+                              ? "مؤكد"
+                              : apt.status === "pending"
+                              ? "قيد الانتظار"
+                              : apt.status === "completed"
+                              ? "مكتمل"
+                              : apt.status === "cancelled"
+                              ? "ملغي"
+                              : "لم يحضر"}
                           </Badge>
                         </td>
+
+                        {/* Booking Source */}
                         <td className="py-3 px-4">
-                          <Badge variant="outline" className="text-xs">
-                            {apt.booking_source === "whatsapp" ? "واتساب (آلي)" : "لوحة التحكم"}
+                          <Badge variant="outline" className="text-[11px]">
+                            {apt.booking_source === "whatsapp" ? "واتساب (آلي)" : "لوحة العيادة"}
                           </Badge>
+                        </td>
+
+                        {/* Actions (Manual Confirm / Cancel / Edit) */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {/* If pending, show Quick Confirm button */}
+                            {apt.status === "pending" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleQuickStatusChange(apt.id, "confirmed")}
+                                className="h-7 px-2 text-xs border-emerald-600/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 gap-1"
+                                title="تأكيد الموعد يدوياً"
+                              >
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>تأكيد</span>
+                              </Button>
+                            )}
+
+                            {/* Edit Button */}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleOpenEdit(apt)}
+                              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                              title="تعديل الموعد وإعادة الجدولة"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">تعديل</span>
+                            </Button>
+
+                            {/* Cancel Button (if not cancelled yet) */}
+                            {apt.status !== "cancelled" ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  if (confirm(`هل أنت متأكد من إلغاء موعد المريض (${apt.patient_name})؟`)) {
+                                    handleQuickStatusChange(apt.id, "cancelled");
+                                  }
+                                }}
+                                className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 gap-1"
+                                title="إلغاء الموعد"
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">إلغاء</span>
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleQuickStatusChange(apt.id, "confirmed")}
+                                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                title="إعادة تفعيل الموعد"
+                              >
+                                إعادة تفعيل
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -199,13 +433,13 @@ export default function AppointmentsPage() {
           </CardContent>
         </Card>
 
-        {/* New Appointment Modal */}
+        {/* 1. Modal: New Appointment */}
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-card w-full max-w-lg rounded-2xl border shadow-xl p-6 relative">
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-card w-full max-w-lg rounded-2xl border shadow-2xl p-6 relative">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="absolute top-5 end-5 text-muted-foreground hover:text-foreground"
+                className="absolute top-5 end-5 text-muted-foreground hover:text-foreground p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -259,7 +493,7 @@ export default function AppointmentsPage() {
                     onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
                   />
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    يقوم النظام آلياً بفحص التعارض الزمني مع المواعيد الأخرى.
+                    يقوم النظام آلياً بفحص التعارض الزمني مع المواعيد الأخرى قبل الحفظ.
                   </p>
                 </div>
 
@@ -278,6 +512,102 @@ export default function AppointmentsPage() {
                   </Button>
                   <Button type="submit" disabled={isLoading}>
                     {isLoading ? t("loading") : t("confirm")}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* 2. Modal: Edit / Reschedule Appointment */}
+        {isEditModalOpen && editingApt && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-card w-full max-w-lg rounded-2xl border shadow-2xl p-6 relative">
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="absolute top-5 end-5 text-muted-foreground hover:text-foreground p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="mb-4">
+                <h2 className="text-xl font-bold text-foreground">تعديل الموعد وإعادة الجدولة</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  المريض: <strong className="text-foreground">{editingApt.patient_name}</strong> ({editingApt.patient_phone})
+                </p>
+              </div>
+
+              {editErrorMsg && (
+                <div className="p-3 mb-4 rounded-lg bg-destructive/10 text-destructive text-sm font-medium flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{editErrorMsg}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveEdit} className="space-y-4">
+                {/* Service Selection */}
+                <div>
+                  <label className="text-xs font-semibold block mb-1">الخدمة الطبية *</label>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                    value={editFormData.service_id}
+                    onChange={(e) => setEditFormData({ ...editFormData, service_id: e.target.value })}
+                  >
+                    {services.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name_ar} — {s.price?.toLocaleString()} د.ع ({s.duration_minutes} د)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Date & Time */}
+                <div>
+                  <label className="text-xs font-semibold block mb-1">التاريخ والوقت الجديد *</label>
+                  <Input
+                    type="datetime-local"
+                    required
+                    value={editFormData.start_time}
+                    onChange={(e) => setEditFormData({ ...editFormData, start_time: e.target.value })}
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    يتم التحقق تلقائياً من توفر التوقيت وعدم وجود تضارب مع مواعيد أخرى.
+                  </p>
+                </div>
+
+                {/* Status Selection */}
+                <div>
+                  <label className="text-xs font-semibold block mb-1">حالة الموعد *</label>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                    value={editFormData.status}
+                    onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                  >
+                    <option value="confirmed">مؤكد (Confirmed)</option>
+                    <option value="pending">قيد الانتظار (Pending)</option>
+                    <option value="completed">مكتمل (Completed)</option>
+                    <option value="cancelled">ملغي (Cancelled)</option>
+                    <option value="no_show">لم يحضر (No Show)</option>
+                  </select>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="text-xs font-semibold block mb-1">ملاحظات إضافية</label>
+                  <Input
+                    placeholder="سبب التعديل أو ملاحظات..."
+                    value={editFormData.notes}
+                    onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4 border-t">
+                  <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
+                    {t("cancel")}
+                  </Button>
+                  <Button type="submit" disabled={isLoading} className="gap-2">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{isLoading ? t("loading") : "حفظ التعديلات"}</span>
                   </Button>
                 </div>
               </form>

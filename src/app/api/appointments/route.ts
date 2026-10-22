@@ -68,3 +68,85 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create appointment" }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, status, start_time, service_id, notes, cancellation_reason } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "معرف الموعد مطلوب" }, { status: 400 });
+    }
+
+    const aptIndex = db.appointments.findIndex((a) => a.id === id);
+    if (aptIndex === -1) {
+      return NextResponse.json({ error: "الموعد غير موجود" }, { status: 404 });
+    }
+
+    const existingApt = db.appointments[aptIndex];
+
+    // If rescheduling (changing time or service)
+    if (start_time || service_id) {
+      const newService = service_id ? db.services.find((s) => s.id === service_id) : db.services.find((s) => s.id === existingApt.service_id);
+      const newDuration = newService?.duration_minutes || existingApt.duration_minutes || 30;
+      const newStartDate = start_time ? new Date(start_time) : new Date(existingApt.start_time);
+      const newEndDate = new Date(newStartDate.getTime() + newDuration * 60000);
+
+      // Conflict check against other appointments
+      const hasConflict = db.appointments.some((a) => {
+        if (a.id === id || a.status === "cancelled") return false;
+        const aStart = new Date(a.start_time).getTime();
+        const aEnd = new Date(a.end_time).getTime();
+        return newStartDate.getTime() < aEnd && newEndDate.getTime() > aStart;
+      });
+
+      if (hasConflict) {
+        return NextResponse.json(
+          { error: "يوجد تعارض زمني: يوجد موعد آخر محجوز في هذا التوقيت." },
+          { status: 409 }
+        );
+      }
+
+      existingApt.start_time = newStartDate.toISOString();
+      existingApt.end_time = newEndDate.toISOString();
+      existingApt.duration_minutes = newDuration;
+      if (newService) {
+        existingApt.service_id = newService.id;
+        existingApt.service_name = newService.name_ar;
+      }
+    }
+
+    if (status) {
+      existingApt.status = status;
+    }
+
+    if (notes !== undefined) {
+      existingApt.notes = notes;
+    }
+
+    return NextResponse.json({ status: "success", appointment: existingApt });
+  } catch {
+    return NextResponse.json({ error: "فشل تحديث بيانات الموعد" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "معرف الموعد مطلوب" }, { status: 400 });
+    }
+
+    const index = db.appointments.findIndex((a) => a.id === id);
+    if (index === -1) {
+      return NextResponse.json({ error: "الموعد غير موجود" }, { status: 404 });
+    }
+
+    db.appointments.splice(index, 1);
+    return NextResponse.json({ status: "success", message: "تم حذف الموعد بنجاح" });
+  } catch {
+    return NextResponse.json({ error: "فشل حذف الموعد" }, { status: 500 });
+  }
+}
