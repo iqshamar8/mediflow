@@ -25,6 +25,7 @@ import {
   MoreVertical,
   Calendar,
   BellRing,
+  UserCheck,
 } from "lucide-react";
 
 export default function AppointmentsPage() {
@@ -218,6 +219,47 @@ export default function AppointmentsPage() {
       alert("حدث خطأ في الاتصال بالخادم");
     } finally {
       setIsSendingReminder(null);
+    }
+  }
+
+  // 6. Check-in Patient to Queue (Only allowed on Appointment Date)
+  async function handleCheckinToQueue(apt: any) {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const aptDate = new Date(apt.start_time).toISOString().slice(0, 10);
+
+      if (aptDate !== today) {
+        alert(
+          `⚠️ لا يمكن إدخال المريض في طابور الانتظار اليوم.\n\nتاريخ موعد المريض: ${aptDate}\nتاريخ اليوم الحالي: ${today}\n\nيتم تسجيل الحضور في شاشة الدور في يوم الموعد فقط.`
+        );
+        return;
+      }
+
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (currentClinic?.id) headers["x-clinic-id"] = currentClinic.id;
+
+      const res = await fetch(`/api/queue?clinic_id=${currentClinic?.id || ""}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          action: "checkin_appointment",
+          appointment_id: apt.id,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.error || "فشل تسجيل حضور المريض في الدور");
+        return;
+      }
+
+      setReminderNotification(
+        `✓ تم تسجيل حضور المريض (${apt.patient_name}) بنجاح في صالة الانتظار اليوم برقم الدور #${json.queue_number}`
+      );
+      setTimeout(() => setReminderNotification(null), 5000);
+      await loadData();
+    } catch {
+      alert("حدث خطأ أثناء تسجيل المريض في الدور");
     }
   }
 
@@ -443,6 +485,20 @@ export default function AppointmentsPage() {
                               >
                                 <Check className="w-3.5 h-3.5 text-emerald-600" />
                                 <span>تأكيد</span>
+                              </Button>
+                            )}
+
+                            {/* Quick Check-in to Waiting Room Queue Button */}
+                            {apt.status !== "cancelled" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleCheckinToQueue(apt)}
+                                className="h-7 px-2.5 text-xs border-emerald-600/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 gap-1 font-medium"
+                                title="تسجيل حضور المريض في صالة الانتظار اليوم"
+                              >
+                                <UserCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span>تسجيل بالدور</span>
                               </Button>
                             )}
 

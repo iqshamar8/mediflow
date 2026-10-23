@@ -30,7 +30,7 @@ export interface Patient {
   patient_number: string;
   full_name: string;
   phone: string;
-  email: string;
+  email?: string;
   date_of_birth: string;
   gender: "male" | "female";
   preferred_language: "ar" | "en";
@@ -141,6 +141,10 @@ export interface QueueItem {
   doctor_name: string;
   status: "waiting" | "in_consultation" | "completed" | "cancelled";
   arrival_time: string;
+  date?: string; // YYYY-MM-DD
+  is_walk_in?: boolean;
+  priority?: "normal" | "urgent";
+  notes?: string;
   called_at?: string;
   completed_at?: string;
 }
@@ -427,12 +431,12 @@ function initDb() {
         patient_phone: "+9647711112222",
         service_id: "srv-001",
         service_name: "كشف عام واستشارة باطنية",
-        start_time: new Date(Date.now() + 86400000).toISOString(),
-        end_time: new Date(Date.now() + 86400000 + 1800000).toISOString(),
+        start_time: new Date().toISOString(),
+        end_time: new Date(Date.now() + 1800000).toISOString(),
         duration_minutes: 30,
         status: "confirmed",
         booking_source: "whatsapp",
-        notes: "حجز تلقائي عبر المساعد الذكي",
+        notes: "حجز اليوم عبر المساعد الذكي",
       },
       {
         id: "apt-002",
@@ -442,12 +446,27 @@ function initDb() {
         patient_phone: "+9647711113333",
         service_id: "srv-002",
         service_name: "متابعة ضغط الدم والسكري",
-        start_time: new Date(Date.now() + 86400000 * 2).toISOString(),
-        end_time: new Date(Date.now() + 86400000 * 2 + 1200000).toISOString(),
+        start_time: new Date().toISOString(),
+        end_time: new Date(Date.now() + 1200000).toISOString(),
         duration_minutes: 20,
+        status: "confirmed",
+        booking_source: "dashboard",
+        notes: "مراجعة اليوم الدورية للتحاليل",
+      },
+      {
+        id: "apt-003",
+        clinic_id: "clinic-1",
+        patient_id: "pat-003",
+        patient_name: "John Doe",
+        patient_phone: "+9647733334444",
+        service_id: "srv-003",
+        service_name: "تخطيط قلب كهربائي (ECG)",
+        start_time: new Date(Date.now() + 86400000 * 2).toISOString(),
+        end_time: new Date(Date.now() + 86400000 * 2 + 1800000).toISOString(),
+        duration_minutes: 30,
         status: "pending",
         booking_source: "dashboard",
-        notes: "مراجعة دورية للتحاليل",
+        notes: "موعد قادم بعد يومين",
       },
 
       // Clinic 2 Appointments
@@ -459,12 +478,12 @@ function initDb() {
         patient_phone: "+9647722223333",
         service_id: "srv-101",
         service_name: "فحص سونار بطن وحوض شامل",
-        start_time: new Date(Date.now() + 86400000).toISOString(),
-        end_time: new Date(Date.now() + 86400000 + 1800000).toISOString(),
+        start_time: new Date().toISOString(),
+        end_time: new Date(Date.now() + 1800000).toISOString(),
         duration_minutes: 30,
         status: "confirmed",
         booking_source: "dashboard",
-        notes: "سونار تفصيلي",
+        notes: "سونار اليوم",
       },
       {
         id: "apt-102",
@@ -479,7 +498,7 @@ function initDb() {
         duration_minutes: 25,
         status: "pending",
         booking_source: "whatsapp",
-        notes: "حجز عبر واتساب",
+        notes: "حجز عبر واتساب بعد 3 أيام",
       },
 
       // Clinic 3 Appointments
@@ -491,12 +510,12 @@ function initDb() {
         patient_phone: "+9647733335555",
         service_id: "srv-201",
         service_name: "تنظيف أسنان وإزالة التكلسات",
-        start_time: new Date(Date.now() + 86400000).toISOString(),
-        end_time: new Date(Date.now() + 86400000 + 2700000).toISOString(),
+        start_time: new Date().toISOString(),
+        end_time: new Date(Date.now() + 2700000).toISOString(),
         duration_minutes: 45,
         status: "confirmed",
         booking_source: "dashboard",
-        notes: "جلسة العصر",
+        notes: "جلسة اليوم",
       },
     ],
     payments: [
@@ -672,7 +691,7 @@ function initDb() {
       },
     ],
     queue: [
-      // Clinic 1 Queue
+      // Clinic 1 Queue (Today)
       {
         id: "q-001",
         clinic_id: "clinic-1",
@@ -685,6 +704,8 @@ function initDb() {
         doctor_name: "د. أحمد الراوي",
         status: "in_consultation",
         arrival_time: "09:45",
+        date: new Date().toISOString().slice(0, 10),
+        is_walk_in: false,
         called_at: "10:05",
       },
       {
@@ -699,6 +720,8 @@ function initDb() {
         doctor_name: "د. أحمد الراوي",
         status: "waiting",
         arrival_time: "10:15",
+        date: new Date().toISOString().slice(0, 10),
+        is_walk_in: false,
       },
       {
         id: "q-003",
@@ -711,6 +734,9 @@ function initDb() {
         doctor_name: "د. أحمد الراوي",
         status: "waiting",
         arrival_time: "10:30",
+        date: new Date().toISOString().slice(0, 10),
+        is_walk_in: true,
+        priority: "urgent",
       },
 
       // Clinic 2 Queue
@@ -726,13 +752,14 @@ function initDb() {
         doctor_name: "د. سارة العبيدي",
         status: "in_consultation",
         arrival_time: "10:00",
+        date: new Date().toISOString().slice(0, 10),
+        is_walk_in: false,
         called_at: "10:10",
       },
       {
         id: "q-102",
         clinic_id: "clinic-2",
         queue_number: 2,
-        appointment_id: "apt-102",
         patient_id: "pat-102",
         patient_name: "نور الهدى التميمي",
         patient_phone: "+9647722224444",
@@ -740,6 +767,8 @@ function initDb() {
         doctor_name: "د. سارة العبيدي",
         status: "waiting",
         arrival_time: "10:20",
+        date: new Date().toISOString().slice(0, 10),
+        is_walk_in: true,
       },
 
       // Clinic 3 Queue
@@ -755,6 +784,8 @@ function initDb() {
         doctor_name: "د. حيدر الأسدي",
         status: "in_consultation",
         arrival_time: "11:00",
+        date: new Date().toISOString().slice(0, 10),
+        is_walk_in: false,
         called_at: "11:15",
       },
     ],

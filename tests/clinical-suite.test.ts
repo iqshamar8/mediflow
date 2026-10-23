@@ -104,6 +104,88 @@ describe("Clinical Suite Engine & Multi-Tenant Isolation", () => {
       expect(callData.called).toBeDefined();
       expect(callData.called.status).toBe("in_consultation");
     });
+
+    it("should allow check-in only on appointment date and reject non-today appointments", async () => {
+      // Find today's appointment
+      const today = new Date().toISOString().slice(0, 10);
+      const todayApt = db.appointments.find(
+        (a) => a.clinic_id === "clinic-1" && a.start_time.startsWith(today)
+      );
+      expect(todayApt).toBeDefined();
+
+      // Check-in today's appointment
+      const validReq = new Request("http://localhost:3000/api/queue", {
+        method: "POST",
+        headers: { "x-clinic-id": "clinic-1", "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "checkin_appointment",
+          appointment_id: todayApt!.id,
+        }),
+      });
+      const validRes = await postQueue(validReq as any);
+      // It should either be created (201) or already checked in (400)
+      expect([201, 400]).toContain(validRes.status);
+
+      // Create a future appointment (tomorrow)
+      const futureApt = {
+        id: `apt-future-${Date.now()}`,
+        clinic_id: "clinic-1",
+        patient_id: "pat-001",
+        patient_name: "مريض موعد غداً",
+        patient_phone: "07701234567",
+        service_id: "srv-001",
+        service_name: "كشف استشاري",
+        start_time: new Date(Date.now() + 86400000 * 2).toISOString(),
+        end_time: new Date(Date.now() + 86400000 * 2 + 1800000).toISOString(),
+        duration_minutes: 30,
+        status: "confirmed" as const,
+        booking_source: "whatsapp" as const,
+      };
+      db.appointments.push(futureApt);
+
+      // Attempt check-in for tomorrow's appointment
+      const invalidReq = new Request("http://localhost:3000/api/queue", {
+        method: "POST",
+        headers: { "x-clinic-id": "clinic-1", "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "checkin_appointment",
+          appointment_id: futureApt.id,
+        }),
+      });
+      const invalidRes = await postQueue(invalidReq as any);
+      expect(invalidRes.status).toBe(400);
+      const invalidJson = await invalidRes.json();
+      expect(invalidJson.error).toContain("لا يمكن إدخال المريض في صالة الانتظار اليوم");
+    });
+
+    it("should allow direct manual registration of new walk-in patient without prior booking", async () => {
+      const walkinReq = new Request("http://localhost:3000/api/queue", {
+        method: "POST",
+        headers: { "x-clinic-id": "clinic-1", "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "add_walkin",
+          is_new_patient: true,
+          full_name: "مريض مباشر وصل الآن",
+          phone: "+9647799887766",
+          gender: "male",
+          service_name: "كشف طارئ",
+          priority: "urgent",
+          send_whatsapp: true,
+        }),
+      });
+
+      const res = await postQueue(walkinReq as any);
+      expect(res.status).toBe(201);
+      const data = await res.json();
+      expect(data.patient_name).toBe("مريض مباشر وصل الآن");
+      expect(data.priority).toBe("urgent");
+      expect(data.is_walk_in).toBe(true);
+
+      // Verify patient was also added to db.patients
+      const pat = db.patients.find((p) => p.phone === "+9647799887766");
+      expect(pat).toBeDefined();
+      expect(pat?.full_name).toBe("مريض مباشر وصل الآن");
+    });
   });
 
   describe("3. Medical Media & Attachments Vault", () => {
