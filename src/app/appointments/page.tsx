@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n/context";
 import { useClinic } from "@/lib/clinic/context";
 import { SearchablePatientSelect } from "@/components/patients/searchable-patient-select";
+import { ProfessionalDateTimePicker } from "@/components/appointments/professional-date-time-picker";
 import {
   CalendarPlus,
   Clock,
@@ -498,7 +499,7 @@ export default function AppointmentsPage() {
         {/* 1. Modal: New Appointment */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-card w-full max-w-lg rounded-2xl border shadow-2xl p-6 relative">
+            <div className="bg-card w-full max-w-2xl rounded-2xl border shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto">
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="absolute top-5 end-5 text-muted-foreground hover:text-foreground p-1 rounded-lg"
@@ -547,15 +548,20 @@ export default function AppointmentsPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold block mb-1">{t("dateTime")} *</label>
-                  <Input
-                    type="datetime-local"
-                    required
+                  <label className="text-xs font-semibold block mb-1.5">
+                    {t("dateTime")} واختيار الفترة المتاحة بالعيادة *
+                  </label>
+                  <ProfessionalDateTimePicker
                     value={formData.start_time}
-                    onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                    onChange={(val) => setFormData({ ...formData, start_time: val })}
+                    existingAppointments={appointments}
+                    serviceDurationMinutes={
+                      services.find((s) => s.id === formData.service_id)?.duration_minutes || 30
+                    }
+                    required
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    يقوم النظام آلياً بفحص التعارض الزمني مع المواعيد الأخرى قبل الحفظ.
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    يقوم النظام آلياً بفحص المواعيد المتاحة ويمنع تضارب الفترات المحجوزة مسبقاً.
                   </p>
                 </div>
 
@@ -584,7 +590,7 @@ export default function AppointmentsPage() {
         {/* 2. Modal: Edit / Reschedule Appointment */}
         {isEditModalOpen && editingApt && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-card w-full max-w-lg rounded-2xl border shadow-2xl p-6 relative">
+            <div className="bg-card w-full max-w-2xl rounded-2xl border shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto">
               <button
                 onClick={() => setIsEditModalOpen(false)}
                 className="absolute top-5 end-5 text-muted-foreground hover:text-foreground p-1 rounded-lg"
@@ -625,14 +631,18 @@ export default function AppointmentsPage() {
 
                 {/* Date & Time */}
                 <div>
-                  <label className="text-xs font-semibold block mb-1">التاريخ والوقت الجديد *</label>
-                  <Input
-                    type="datetime-local"
-                    required
+                  <label className="text-xs font-semibold block mb-1.5">التاريخ والوقت الجديد *</label>
+                  <ProfessionalDateTimePicker
                     value={editFormData.start_time}
-                    onChange={(e) => setEditFormData({ ...editFormData, start_time: e.target.value })}
+                    onChange={(val) => setEditFormData({ ...editFormData, start_time: val })}
+                    existingAppointments={appointments}
+                    excludeAppointmentId={editingApt.id}
+                    serviceDurationMinutes={
+                      services.find((s) => s.id === editFormData.service_id)?.duration_minutes || 30
+                    }
+                    required
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
                     يتم التحقق تلقائياً من توفر التوقيت وعدم وجود تضارب مع مواعيد أخرى.
                   </p>
                 </div>
