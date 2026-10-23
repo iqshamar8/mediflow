@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n/context";
 import { useClinic } from "@/lib/clinic/context";
+import { SearchablePatientSelect } from "@/components/patients/searchable-patient-select";
 import {
   FileText,
   ShieldAlert,
@@ -247,18 +248,18 @@ export default function VisitsPage() {
 
               <form onSubmit={handleAddVisit} className="space-y-4">
                 <div>
-                  <label className="text-xs font-semibold block mb-1">المريض *</label>
-                  <select
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                  <label className="text-xs font-semibold block mb-1.5 flex items-center justify-between">
+                    <span>المريض *</span>
+                    <span className="text-[10px] text-muted-foreground font-normal">
+                      (يمكنك البحث بالاسم أو الهاتف أو رقم الملف)
+                    </span>
+                  </label>
+                  <SearchablePatientSelect
+                    patients={patients}
                     value={formData.patient_id}
-                    onChange={(e) => setFormData({ ...formData, patient_id: e.target.value })}
-                  >
-                    {patients.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.full_name} ({p.patient_number})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(patientId) => setFormData({ ...formData, patient_id: patientId })}
+                    required
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
