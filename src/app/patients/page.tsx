@@ -10,9 +10,11 @@ import { useI18n } from "@/lib/i18n/context";
 import { PlusCircle, Search, User, Phone, Calendar, CheckCircle2, X, FileSpreadsheet, Download, ExternalLink } from "lucide-react";
 import { PatientImportDialog } from "@/components/patients/patient-import-dialog";
 import { PatientDetailsDialog } from "@/components/patients/patient-details-dialog";
+import { useClinic } from "@/lib/clinic/context";
 
 export default function PatientsPage() {
   const { t } = useI18n();
+  const { currentClinic } = useClinic();
   const [patients, setPatients] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -57,11 +59,12 @@ export default function PatientsPage() {
 
   useEffect(() => {
     fetchPatients();
-  }, []);
+  }, [currentClinic?.id]);
 
   async function fetchPatients() {
     try {
-      const res = await fetch("/api/patients");
+      const headers: Record<string, string> = currentClinic?.id ? { "x-clinic-id": currentClinic.id } : {};
+      const res = await fetch(`/api/patients?clinic_id=${currentClinic?.id || ""}`, { headers });
       const json = await res.json();
       setPatients(json.data || []);
     } catch {
@@ -75,9 +78,13 @@ export default function PatientsPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch("/api/patients", {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (currentClinic?.id) {
+        headers["x-clinic-id"] = currentClinic.id;
+      }
+      const res = await fetch(`/api/patients?clinic_id=${currentClinic?.id || ""}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(formData),
       });
 

@@ -8,22 +8,40 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n/context";
 import { useTheme } from "@/lib/theme/context";
-import { Settings, Save, ShieldCheck, CheckCircle2, Sun, Moon, Laptop } from "lucide-react";
+import { useClinic } from "@/lib/clinic/context";
+import { Settings, Save, ShieldCheck, CheckCircle2, Sun, Moon, Laptop, Stethoscope, Building2 } from "lucide-react";
 
 export default function SettingsPage() {
   const { t } = useI18n();
   const { theme, setTheme } = useTheme();
+  const { currentClinic } = useClinic();
   const [saved, setSaved] = useState(false);
   const [formData, setFormData] = useState({
-    clinicName: "عيادة النور الطبية التخصصية (Al-Noor Clinic)",
-    phone: "+964 770 000 0001",
-    email: "contact@alnoorclinic.test",
-    address: "شارع المنصور، بغداد، العراق",
+    clinicName: currentClinic?.name || "عيادة د. أحمد الراوي التخصصية",
+    doctorName: currentClinic?.doctor_name || "د. أحمد الراوي",
+    specialty: currentClinic?.specialty || "استشاري الأمراض الباطنية والقلب",
+    phone: currentClinic?.phone || "+964 770 000 0001",
+    email: currentClinic?.email || "dr.ahmed@mediflow.iq",
+    address: currentClinic?.address || "بغداد - المنصور - شارع 14 رمضان",
     timezone: "Asia/Baghdad",
     currency: "IQD",
     reminder24h: true,
     reminder2h: true,
   });
+
+  React.useEffect(() => {
+    if (currentClinic) {
+      setFormData((prev) => ({
+        ...prev,
+        clinicName: currentClinic.name,
+        doctorName: currentClinic.doctor_name,
+        specialty: currentClinic.specialty,
+        phone: currentClinic.phone,
+        email: currentClinic.email || "",
+        address: currentClinic.address || "",
+      }));
+    }
+  }, [currentClinic]);
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();

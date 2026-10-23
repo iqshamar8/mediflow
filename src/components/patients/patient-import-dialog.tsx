@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import * as XLSX from "xlsx";
+import { useClinic } from "@/lib/clinic/context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,6 +35,7 @@ interface ParsedRow {
 }
 
 export function PatientImportDialog({ isOpen, onClose, onImportSuccess }: PatientImportDialogProps) {
+  const { currentClinic } = useClinic();
   const [file, setFile] = useState<File | null>(null);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
@@ -140,9 +142,13 @@ export function PatientImportDialog({ isOpen, onClose, onImportSuccess }: Patien
     setErrorMsg("");
 
     try {
-      const res = await fetch("/api/patients/import", {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (currentClinic?.id) {
+        headers["x-clinic-id"] = currentClinic.id;
+      }
+      const res = await fetch(`/api/patients/import?clinic_id=${currentClinic?.id || ""}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ patients: validRows }),
       });
 

@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n/context";
+import { useClinic } from "@/lib/clinic/context";
 import { formatCurrency } from "@/lib/utils";
 import { PlusCircle, Clock, Stethoscope, X, Edit3, Trash2, CheckCircle2 } from "lucide-react";
 
 export default function ServicesPage() {
   const { t } = useI18n();
+  const { currentClinic } = useClinic();
   const [services, setServices] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -36,11 +38,12 @@ export default function ServicesPage() {
 
   useEffect(() => {
     fetchServices();
-  }, []);
+  }, [currentClinic?.id]);
 
   async function fetchServices() {
     try {
-      const res = await fetch("/api/services");
+      const headers: Record<string, string> = currentClinic?.id ? { "x-clinic-id": currentClinic.id } : {};
+      const res = await fetch(`/api/services?clinic_id=${currentClinic?.id || ""}`, { headers });
       const json = await res.json();
       setServices(json.data || []);
     } catch {
@@ -52,9 +55,13 @@ export default function ServicesPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await fetch("/api/services", {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (currentClinic?.id) {
+        headers["x-clinic-id"] = currentClinic.id;
+      }
+      await fetch(`/api/services?clinic_id=${currentClinic?.id || ""}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(formData),
       });
       await fetchServices();

@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
-import { db, Patient } from "@/server/mock-db";
+import { db, Patient, getRequestClinicId } from "@/server/mock-db";
 
 export async function GET(request: Request) {
+  const clinicId = getRequestClinicId(request);
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search")?.toLowerCase() || "";
 
-  let results = db.patients;
+  // Strict tenant isolation: only return patients belonging to the active clinic
+  let results = (db.patients || []).filter(
+    (p) => p.clinic_id === clinicId || (!p.clinic_id && clinicId === "clinic-1")
+  );
+
   if (search) {
     results = results.filter(
       (p) =>
@@ -18,11 +23,13 @@ export async function GET(request: Request) {
   return NextResponse.json({
     data: results,
     total: results.length,
+    clinic_id: clinicId,
   });
 }
 
 export async function POST(request: Request) {
   try {
+    const clinicId = getRequestClinicId(request);
     const body = await request.json();
     const { full_name, phone, email, date_of_birth, gender, preferred_language, whatsapp_consent, admin_notes } = body;
 
@@ -30,17 +37,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Name and phone are required" }, { status: 400 });
     }
 
-    // Check duplicate by phone
-    const existing = db.patients.find((p) => p.phone === phone);
+    // Check duplicate by phone strictly within THIS doctor's clinic
+    const existing = db.patients.find(
+      (p) =>
+        (p.clinic_id === clinicId || (!p.clinic_id && clinicId === "clinic-1")) &&
+        p.phone === phone
+    );
     if (existing) {
       return NextResponse.json(
-        { error: "A patient with this phone number already exists", existingId: existing.id },
+        { error: "A patient with this phone number already exists in your clinic", existingId: existing.id },
         { status: 409 }
       );
     }
 
     const newPatient: Patient = {
       id: `pat-${Date.now()}`,
+      clinic_id: clinicId,
       patient_number: `P-${1000 + db.patients.length + 1}`,
       full_name,
       phone,
@@ -63,6 +75,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const clinicId = getRequestClinicId(request);
     const body = await request.json();
     const { id, full_name, phone, email, date_of_birth, gender, whatsapp_consent, admin_notes } = body;
 
@@ -70,16 +83,23 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "معرف المريض مطلوب" }, { status: 400 });
     }
 
-    const patient = db.patients.find((p) => p.id === id);
+    const patient = db.patients.find(
+      (p) => p.id === id && (p.clinic_id === clinicId || (!p.clinic_id && clinicId === "clinic-1"))
+    );
     if (!patient) {
-      return NextResponse.json({ error: "المريض غير موجود" }, { status: 404 });
+      return NextResponse.json({ error: "المريض غير موجود في هذه العيادة" }, { status: 404 });
     }
 
-    // Check if phone changed and is taken by another patient
+    // Check if phone changed and is taken by another patient in THIS clinic
     if (phone && phone !== patient.phone) {
-      const duplicate = db.patients.find((p) => p.id !== id && p.phone === phone);
+      const duplicate = db.patients.find(
+        (p) =>
+          p.id !== id &&
+          (p.clinic_id === clinicId || (!p.clinic_id && clinicId === "clinic-1")) &&
+          p.phone === phone
+      );
       if (duplicate) {
-        return NextResponse.json({ error: "رقم الهاتف مستخدم بالفعل لمريض آخر" }, { status: 409 });
+        return NextResponse.json({ error: "رقم الهاتف مستخدم بالفعل لمريض آخر في عيادتك" }, { status: 409 });
       }
       patient.phone = phone;
     }
@@ -99,6 +119,7 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const clinicId = getRequestClinicId(request);
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -106,9 +127,11 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "معرف المريض مطلوب" }, { status: 400 });
     }
 
-    const index = db.patients.findIndex((p) => p.id === id);
+    const index = db.patients.findIndex(
+      (p) => p.id === id && (p.clinic_id === clinicId || (!p.clinic_id && clinicId === "clinic-1"))
+    );
     if (index === -1) {
-      return NextResponse.json({ error: "المريض غير موجود" }, { status: 404 });
+      return NextResponse.json({ error: "المريض غير موجود في هذه العيادة" }, { status: 404 });
     }
 
     db.patients.splice(index, 1);

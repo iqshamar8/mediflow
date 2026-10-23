@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n/context";
+import { useClinic } from "@/lib/clinic/context";
 import {
   CalendarPlus,
   Clock,
@@ -26,6 +27,7 @@ import {
 
 export default function AppointmentsPage() {
   const { t } = useI18n();
+  const { currentClinic } = useClinic();
   const [appointments, setAppointments] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
@@ -59,14 +61,15 @@ export default function AppointmentsPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentClinic?.id]);
 
   async function loadData() {
     try {
+      const headers: Record<string, string> = currentClinic?.id ? { "x-clinic-id": currentClinic.id } : {};
       const [aptRes, patRes, srvRes] = await Promise.all([
-        fetch("/api/appointments"),
-        fetch("/api/patients"),
-        fetch("/api/services"),
+        fetch(`/api/appointments?clinic_id=${currentClinic?.id || ""}`, { headers }),
+        fetch(`/api/patients?clinic_id=${currentClinic?.id || ""}`, { headers }),
+        fetch(`/api/services?clinic_id=${currentClinic?.id || ""}`, { headers }),
       ]);
       const aptJson = await aptRes.json();
       const patJson = await patRes.json();

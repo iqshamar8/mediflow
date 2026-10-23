@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, WhatsAppMessage } from "@/server/mock-db";
+import { db, WhatsAppMessage, getRequestClinicId } from "@/server/mock-db";
 import { processConversationalMessage } from "@/server/whatsapp-bot";
 
 // 1. GET: Meta Webhook Verification Challenge
@@ -21,7 +21,10 @@ export async function GET(request: Request) {
 // 2. POST: Inbound Message Processing & Conversational Booking Assistant
 export async function POST(request: Request) {
   try {
+    const clinicId = getRequestClinicId(request);
     const body = await request.json();
+
+    const targetClinicId = body.clinic_id || clinicId;
 
     // Support both raw Meta Cloud API payloads and simplified test payloads
     let senderPhone = "";
@@ -45,6 +48,7 @@ export async function POST(request: Request) {
     // 1. Log inbound message
     const inboundMsg: WhatsAppMessage = {
       id: `msg-${Date.now()}`,
+      clinic_id: targetClinicId,
       direction: "inbound",
       sender_phone: senderPhone,
       receiver_phone: "+9647700000001",
@@ -54,12 +58,13 @@ export async function POST(request: Request) {
     };
     db.messages.push(inboundMsg);
 
-    // 2. Conversational Multi-turn Response via WhatsApp Bot Engine
-    const replyText = await processConversationalMessage(senderPhone, messageText);
+    // 2. Conversational Multi-turn Response via WhatsApp Bot Engine for THIS clinic
+    const replyText = await processConversationalMessage(senderPhone, messageText, targetClinicId);
 
     // 3. Log outbound message
     const outboundMsg: WhatsAppMessage = {
       id: `msg-${Date.now() + 1}`,
+      clinic_id: targetClinicId,
       direction: "outbound",
       sender_phone: "+9647700000001",
       receiver_phone: senderPhone,
@@ -71,8 +76,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       status: "success",
+      clinic_id: targetClinicId,
       reply: replyText,
-      appointmentsTotal: db.appointments.length,
+      appointmentsTotal: db.appointments.filter(a => a.clinic_id === targetClinicId).length,
     });
   } catch {
     return NextResponse.json({ error: "Failed to process message" }, { status: 500 });

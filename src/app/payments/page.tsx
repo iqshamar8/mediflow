@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n/context";
+import { useClinic } from "@/lib/clinic/context";
 import { formatCurrency } from "@/lib/utils";
 import { PlusCircle, CreditCard, Download, Receipt, X } from "lucide-react";
 
 export default function PaymentsPage() {
   const { t } = useI18n();
+  const { currentClinic } = useClinic();
   const [payments, setPayments] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
   const [totalCollected, setTotalCollected] = useState(0);
@@ -26,13 +28,14 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentClinic?.id]);
 
   async function loadData() {
     try {
+      const headers: Record<string, string> = currentClinic?.id ? { "x-clinic-id": currentClinic.id } : {};
       const [payRes, patRes] = await Promise.all([
-        fetch("/api/payments"),
-        fetch("/api/patients"),
+        fetch(`/api/payments?clinic_id=${currentClinic?.id || ""}`, { headers }),
+        fetch(`/api/patients?clinic_id=${currentClinic?.id || ""}`, { headers }),
       ]);
       const payJson = await payRes.json();
       const patJson = await patRes.json();
@@ -53,9 +56,13 @@ export default function PaymentsPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await fetch("/api/payments", {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (currentClinic?.id) {
+        headers["x-clinic-id"] = currentClinic.id;
+      }
+      await fetch(`/api/payments?clinic_id=${currentClinic?.id || ""}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(formData),
       });
       await loadData();

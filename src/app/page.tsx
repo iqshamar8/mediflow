@@ -35,6 +35,8 @@ import {
   CartesianGrid,
 } from "recharts";
 
+import { useClinic } from "@/lib/clinic/context";
+
 interface DashboardData {
   totalPatients: number;
   todayAppointmentsCount: number;
@@ -52,40 +54,25 @@ interface DashboardData {
 
 export default function DashboardPage() {
   const { t } = useI18n();
+  const { currentClinic } = useClinic();
   const [reminderSentId, setReminderSentId] = useState<string | null>(null);
   const [data, setData] = useState<DashboardData>({
-    totalPatients: 3,
-    todayAppointmentsCount: 2,
-    confirmedAppointmentsCount: 2,
-    totalRevenue: 25000,
-    upcomingAppointments: [
-      {
-        id: "apt-001",
-        patient_name: "علي حسن الكرخي",
-        service_name: "كشف عام واستشارة",
-        start_time: new Date(Date.now() + 86400000).toISOString(),
-        status: "confirmed",
-        booking_source: "whatsapp",
-      },
-      {
-        id: "apt-002",
-        patient_name: "مريم أحمد البياتي",
-        service_name: "فحص موجات فوق صوتية (سونار)",
-        start_time: new Date(Date.now() + 86400000 * 2).toISOString(),
-        status: "pending",
-        booking_source: "dashboard",
-      },
-    ],
+    totalPatients: 0,
+    todayAppointmentsCount: 0,
+    confirmedAppointmentsCount: 0,
+    totalRevenue: 0,
+    upcomingAppointments: [],
   });
 
   useEffect(() => {
-    // Fetch live dashboard metrics from API
+    // Fetch live dashboard metrics from API isolated to the active clinic
     async function loadMetrics() {
       try {
+        const clinicHeaders: Record<string, string> = currentClinic?.id ? { "x-clinic-id": currentClinic.id } : {};
         const [patRes, aptRes, payRes] = await Promise.all([
-          fetch("/api/patients"),
-          fetch("/api/appointments"),
-          fetch("/api/payments"),
+          fetch(`/api/patients?clinic_id=${currentClinic?.id || ""}`, { headers: clinicHeaders }),
+          fetch(`/api/appointments?clinic_id=${currentClinic?.id || ""}`, { headers: clinicHeaders }),
+          fetch(`/api/payments?clinic_id=${currentClinic?.id || ""}`, { headers: clinicHeaders }),
         ]);
         const patData = await patRes.json();
         const aptData = await aptRes.json();
@@ -99,11 +86,11 @@ export default function DashboardPage() {
           upcomingAppointments: aptData.data?.slice(0, 5) || [],
         });
       } catch {
-        // Keeps initial fallback data
+        // Keeps fallback
       }
     }
     loadMetrics();
-  }, []);
+  }, [currentClinic?.id]);
 
   async function handleSendQuickReminder(aptId: string) {
     try {
@@ -127,11 +114,16 @@ export default function DashboardPage() {
         {/* Welcome Banner */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 rounded-2xl border border-primary/20">
           <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-primary/15 text-primary border border-primary/25">
+                {currentClinic?.specialty || "نظام مستقل"}
+              </span>
+            </div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              {t("navDashboard")} — عيادة النور الطبية
+              {currentClinic ? currentClinic.name : "نظام العيادة الطبية"}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              مرحباً بك دكتور، لديك {data.todayAppointmentsCount} مواعيد مجدولة ومؤكدة هذا الأسبوع.
+              مرحباً بك {currentClinic?.doctor_name || "دكتور"}، لديك {data.todayAppointmentsCount} مواعيد مجدولة في عيادتك الخاصة.
             </p>
           </div>
           <div className="flex items-center gap-2">

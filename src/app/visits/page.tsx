@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n/context";
+import { useClinic } from "@/lib/clinic/context";
 import {
   FileText,
   ShieldAlert,
@@ -23,6 +24,7 @@ import {
 
 export default function VisitsPage() {
   const { t } = useI18n();
+  const { currentClinic } = useClinic();
   const [visits, setVisits] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
   const [search, setSearch] = useState("");
@@ -30,8 +32,8 @@ export default function VisitsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     patient_id: "",
-    doctor_name: "د. أحمد الراوي",
-    service_name: "كشف عام واستشارة",
+    doctor_name: currentClinic?.doctor_name || "د. أحمد الراوي",
+    service_name: "كشف واستشارة طبية",
     diagnosis: "",
     clinical_notes: "",
     prescription: "",
@@ -40,13 +42,17 @@ export default function VisitsPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+    if (currentClinic?.doctor_name) {
+      setFormData((prev) => ({ ...prev, doctor_name: currentClinic.doctor_name }));
+    }
+  }, [currentClinic?.id, currentClinic?.doctor_name]);
 
   async function loadData() {
     try {
+      const headers: Record<string, string> = currentClinic?.id ? { "x-clinic-id": currentClinic.id } : {};
       const [visRes, patRes] = await Promise.all([
-        fetch("/api/visits"),
-        fetch("/api/patients"),
+        fetch(`/api/visits?clinic_id=${currentClinic?.id || ""}`, { headers }),
+        fetch(`/api/patients?clinic_id=${currentClinic?.id || ""}`, { headers }),
       ]);
       const visJson = await visRes.json();
       const patJson = await patRes.json();
@@ -67,9 +73,13 @@ export default function VisitsPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch("/api/visits", {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (currentClinic?.id) {
+        headers["x-clinic-id"] = currentClinic.id;
+      }
+      const res = await fetch(`/api/visits?clinic_id=${currentClinic?.id || ""}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(formData),
       });
 

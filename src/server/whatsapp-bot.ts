@@ -1,14 +1,15 @@
 import { db, Patient, Appointment, WhatsAppMessage, ConversationSession } from "@/server/mock-db";
 
 /**
- * Intelligent WhatsApp Conversational Bot for MediFlow Clinic
+ * Intelligent WhatsApp Conversational Bot for MediFlow Clinics
  * Understands Iraqi Arabic, Modern Standard Arabic, and English.
- * Maintains multi-turn conversation state per sender phone.
+ * Maintains multi-turn conversation state per sender phone and isolates by clinic.
  */
 
 export async function processConversationalMessage(
   senderPhone: string,
-  messageText: string
+  messageText: string,
+  clinicId?: string
 ): Promise<string> {
   const text = messageText.trim();
   const lower = text.toLowerCase();
@@ -24,8 +25,22 @@ export async function processConversationalMessage(
     lastInteraction: new Date().toISOString(),
   };
 
-  // 2. Identify or lookup existing patient in the clinic
-  let patient = db.patients.find((p) => p.phone.replace(/\D/g, "").includes(senderPhone.replace(/\D/g, "").slice(-8)));
+  const activeClinicId = clinicId || session.clinic_id || "clinic-1";
+  session.clinic_id = activeClinicId;
+
+  const currentClinic = db.clinics?.find((c) => c.id === activeClinicId) || db.clinics?.[0] || {
+    name: "عيادة د. أحمد الراوي التخصصية",
+    doctor_name: "د. أحمد الراوي",
+    phone: "+9647711110000",
+    address: "بغداد - الحارثية - مجمع الكندي الطبي",
+  };
+
+  // 2. Identify or lookup existing patient in this specific clinic
+  let patient = db.patients.find(
+    (p) =>
+      (p.clinic_id === activeClinicId || (!p.clinic_id && activeClinicId === "clinic-1")) &&
+      p.phone.replace(/\D/g, "").includes(senderPhone.replace(/\D/g, "").slice(-8))
+  );
 
   // 3. Intent Detection & Entity Extraction
 
@@ -44,8 +59,8 @@ export async function processConversationalMessage(
     db.sessions[senderPhone] = session;
     return (
       "تدلل عيني! 🩺\n" +
-      "تم تحويل محادثتك لموظف الاستقبال بالعيادة، وسيقوم بالرد عليك مباشرة خلال لحظات.\n" +
-      "يمكنك أيضاً الاتصال بنا مباشرة على هاتف العيادة: 07700000001."
+      `تم تحويل محادثتك لموظف الاستقبال في ${currentClinic.name}، وسيقوم بالرد عليك مباشرة خلال لحظات.\n` +
+      `يمكنك أيضاً الاتصال بنا مباشرة على هاتف العيادة: ${currentClinic.phone}.`
     );
   }
 
@@ -60,8 +75,8 @@ export async function processConversationalMessage(
     lower.includes("address")
   ) {
     return (
-      "أهلاً وسهلاً بك في عيادة النور التخصصية 📍\n" +
-      "العنوان: بغداد - المنصور - شارع 14 رمضان (قرب ساحة الرواد).\n" +
+      `أهلاً وسهلاً بك في ${currentClinic.name} 📍\n` +
+      `العنوان: ${currentClinic.address}.\n` +
       "أوقات الدوام: من الأحد إلى الخميس (9:00 صباحاً - 6:00 مساءً)، والسبت (10:00 صباحاً - 3:00 مساءً).\n\n" +
       "تحب تحجز موعد لكشف أو استشارة طبية؟"
     );
@@ -69,19 +84,19 @@ export async function processConversationalMessage(
 
   // Check if asking about doctors or availability
   if (
-    lower.includes("دكتور أحمد") ||
-    lower.includes("دكتورة سارة") ||
+    lower.includes("دكتور") ||
+    lower.includes("دكتورة") ||
     lower.includes("اطباء") ||
     lower.includes("أطباء") ||
     lower.includes("طبيب") ||
     lower.includes("doctor")
   ) {
     return (
-      "حياك الله عيني 👋\n" +
-      "الأطباء المتواجدون في العيادة:\n" +
-      "• د. أحمد الراوي (استشاري الأمراض الباطنية والكشف العام) — متواجد يومياً من 10 ص إلى 5 م.\n" +
-      "• د. سارة العبيدي (أخصائية السونار والأشعة التشخيصية) — متواجدة أيام الأحد والثلاثاء والخميس.\n\n" +
-      "تحب نحجز لك موعد مع أي منهم؟"
+      `حياك الله عيني 👋\n` +
+      `الطبيب المشرف في ${currentClinic.name}:\n` +
+      `• ${currentClinic.doctor_name} (${(currentClinic as any).specialty || "استشاري"})\n` +
+      `أوقات الاستقبال: يومياً من 10:00 صباحاً إلى 5:00 مساءً.\n\n` +
+      `تحب نحجز لك موعد كشف أو استشارة؟`
     );
   }
 
@@ -90,13 +105,17 @@ export async function processConversationalMessage(
     (lower.includes("خدمات") || lower.includes("سعر") || lower.includes("اسعار") || lower.includes("بيش") || lower.includes("تكلفة") || lower.includes("price")) &&
     session.step !== "awaiting_confirmation"
   ) {
-    const list = db.services
-      .filter((s) => s.is_active)
-      .map((s, idx) => `• ${s.name_ar}: ${s.price.toLocaleString()} د.ع (${s.duration_minutes} دقيقة)`)
+    const clinicServices = db.services.filter(
+      (s) => s.is_active && (s.clinic_id === activeClinicId || (!s.clinic_id && activeClinicId === "clinic-1"))
+    );
+    const servicesToShow = clinicServices.length > 0 ? clinicServices : db.services.filter((s) => s.is_active);
+
+    const list = servicesToShow
+      .map((s) => `• ${s.name_ar}: ${s.price.toLocaleString()} د.ع (${s.duration_minutes} دقيقة)`)
       .join("\n");
 
     return (
-      "أهلاً بك عيني! قائمة الخدمات والأسعار المعتمدة بالعيادة:\n\n" +
+      `أهلاً بك عيني! قائمة الخدمات والأسعار المعتمدة بالعيادة:\n\n` +
       list +
       "\n\nلحجز أي خدمة، اكتب لي: (أريد أحجز كشف باچر) أو اذكر الخدمة والوقت المناسب إلك."
     );
@@ -112,7 +131,12 @@ export async function processConversationalMessage(
     lower.includes("cancel")
   ) {
     if (patient) {
-      const activeApt = db.appointments.find((a) => a.patient_id === patient?.id && a.status === "confirmed");
+      const activeApt = db.appointments.find(
+        (a) =>
+          a.patient_id === patient?.id &&
+          (a.clinic_id === activeClinicId || (!a.clinic_id && activeClinicId === "clinic-1")) &&
+          a.status === "confirmed"
+      );
       if (activeApt) {
         activeApt.status = "cancelled";
         session.step = "idle";
@@ -125,7 +149,7 @@ export async function processConversationalMessage(
     }
     session.step = "idle";
     db.sessions[senderPhone] = session;
-    return "تم استلام طلب الإلغاء. لم نعثر على حجز مؤكد مرتبط بهذا الرقم. إذا كنت مسجلاً باسم آخر، اذكر اسمك ورقم الحجز وسنقوم بمساعدتك فوراً.";
+    return "تم استلام طلب الإلغاء. لم نعثر على حجز مؤكد مرتبط بهذا الرقم في هذه العيادة. إذا كنت مسجلاً باسم آخر، اذكر اسمك وسنقوم بمساعدتك فوراً.";
   }
 
   // Check if patient wants to RESCHEDULE / Change time
@@ -139,7 +163,12 @@ export async function processConversationalMessage(
     lower.includes("reschedule")
   ) {
     const targetApt = patient
-      ? db.appointments.find((a) => a.patient_id === patient?.id && a.status !== "cancelled")
+      ? db.appointments.find(
+          (a) =>
+            a.patient_id === patient?.id &&
+            (a.clinic_id === activeClinicId || (!a.clinic_id && activeClinicId === "clinic-1")) &&
+            a.status !== "cancelled"
+        )
       : null;
 
     // Detect requested new time (e.g. 11, 4, عصر, باجر)
@@ -192,6 +221,7 @@ export async function processConversationalMessage(
     // Finalize booking
     const finalPatient = patient || {
       id: `pat-wa-${Date.now()}`,
+      clinic_id: activeClinicId,
       patient_number: `P-${1000 + db.patients.length + 1}`,
       full_name: session.patientName || "مريض واتساب",
       phone: senderPhone,
@@ -208,11 +238,20 @@ export async function processConversationalMessage(
       db.patients.push(finalPatient);
     }
 
-    const srv = db.services.find((s) => s.id === session.selectedServiceId) || db.services[0];
+    const srv =
+      db.services.find(
+        (s) =>
+          s.id === session.selectedServiceId &&
+          (s.clinic_id === activeClinicId || (!s.clinic_id && activeClinicId === "clinic-1"))
+      ) ||
+      db.services.find((s) => s.clinic_id === activeClinicId) ||
+      db.services[0];
+
     const aptTime = session.proposedTime ? new Date(session.proposedTime) : new Date(Date.now() + 86400000);
 
     const newApt: Appointment = {
       id: `apt-wa-${Date.now()}`,
+      clinic_id: activeClinicId,
       patient_id: finalPatient.id,
       patient_name: finalPatient.full_name,
       patient_phone: senderPhone,
@@ -231,11 +270,11 @@ export async function processConversationalMessage(
     db.sessions[senderPhone] = session;
 
     return (
-      `تم تثبيت حجزك بنجاح في عيادة النور! ✨\n\n` +
+      `تم تثبيت حجزك بنجاح في ${currentClinic.name}! ✨\n\n` +
       `👤 اسم المريض: ${finalPatient.full_name}\n` +
       `🩺 الخدمة: ${srv.name_ar}\n` +
       `📅 الموعد: ${aptTime.toLocaleDateString("ar-IQ")} الساعة ${aptTime.toLocaleTimeString("ar-IQ", { hour: "numeric", minute: "2-digit" })}\n` +
-      `📍 الموقع: بغداد - المنصور - شارع 14 رمضان\n` +
+      `📍 الموقع: ${currentClinic.address}\n` +
       `💵 التكلفة: ${srv.price.toLocaleString()} د.ع\n\n` +
       `سنرسل لك تذكيراً تلقائياً قبل الموعد. نتمنى لك دوام الصحة والعافية!`
     );
@@ -284,13 +323,23 @@ export async function processConversationalMessage(
 
   if (isBookingOrSymptom) {
     // 1. Identify Service by symptoms / keywords
-    let matchedService = db.services[0]; // Default general consultation
+    const availableServices = db.services.filter(
+      (s) => s.is_active && (s.clinic_id === activeClinicId || (!s.clinic_id && activeClinicId === "clinic-1"))
+    );
+    const pool = availableServices.length > 0 ? availableServices : db.services;
+
+    let matchedService = pool[0]; // Default consultation
     if (lower.includes("سن") || lower.includes("أسنان") || lower.includes("اسنان") || lower.includes("تنظيف")) {
-      matchedService = db.services.find((s) => s.id === "srv-004") || matchedService;
+      matchedService =
+        pool.find((s) => s.name_ar.includes("أسنان") || s.id === "srv-201" || s.id === "srv-004") ||
+        db.services.find((s) => s.name_ar.includes("أسنان")) ||
+        matchedService;
     } else if (lower.includes("سونار") || lower.includes("بطن") || lower.includes("تلفزيون") || lower.includes("أشعة")) {
-      matchedService = db.services.find((s) => s.id === "srv-003") || matchedService;
+      matchedService =
+        pool.find((s) => s.name_ar.includes("سونار") || s.name_ar.includes("موجات") || s.id === "srv-003" || s.id === "srv-101") ||
+        matchedService;
     } else if (lower.includes("متابعة") || lower.includes("مراجعة") || lower.includes("تحليل")) {
-      matchedService = db.services.find((s) => s.id === "srv-002") || matchedService;
+      matchedService = pool.find((s) => s.name_ar.includes("متابعة") || s.id === "srv-002") || matchedService;
     }
 
     session.selectedServiceId = matchedService.id;
@@ -298,63 +347,59 @@ export async function processConversationalMessage(
 
     // 2. Identify proposed Date & Time from message
     const targetDate = new Date();
-    if (lower.includes("اليوم")) {
-      targetDate.setHours(targetDate.getHours() + 2, 0, 0, 0);
+    if (lower.includes("عقبه") || lower.includes("بعد غد")) {
+      targetDate.setDate(targetDate.getDate() + 2);
     } else {
-      // Default to tomorrow
+      // Default to tomorrow (باچر)
       targetDate.setDate(targetDate.getDate() + 1);
-      if (lower.includes("عصر") || lower.includes("5") || lower.includes("مساء")) {
-        targetDate.setHours(16, 30, 0, 0);
-      } else if (lower.includes("ظهر") || lower.includes("12")) {
-        targetDate.setHours(12, 0, 0, 0);
-      } else {
-        targetDate.setHours(10, 30, 0, 0);
-      }
+    }
+
+    // Time detection
+    if (lower.includes("عصر") || lower.includes("مساء") || lower.includes("4") || lower.includes("أربعة")) {
+      targetDate.setHours(16, 30, 0, 0);
+    } else if (lower.includes("ظهر") || lower.includes("12") || lower.includes("اثنعش")) {
+      targetDate.setHours(12, 0, 0, 0);
+    } else {
+      targetDate.setHours(10, 30, 0, 0); // Default morning
     }
 
     session.proposedTime = targetDate.toISOString();
-    session.notes = `حجز ${matchedService.name_ar} عبر الواتساب`;
+    session.notes = `طلب حجز ذكي عبر الواتساب: "${text}"`;
 
-    const formattedTime = targetDate.toLocaleTimeString("ar-IQ", { hour: "numeric", minute: "2-digit" });
-    const formattedDay = lower.includes("اليوم") ? "اليوم" : "غداً";
-
-    // If patient already registered in clinic database:
     if (patient) {
+      // Patient already known, go directly to confirmation
       session.patientName = patient.full_name;
       session.step = "awaiting_confirmation";
       db.sessions[senderPhone] = session;
 
       return (
-        `يا هلا بيك دكتور/أخ ${patient.full_name} في عيادة النور! سلامتك وما تشوف شر إن شاء الله 🩺\n\n` +
-        `لقينا لك موعد متاح لـ (${matchedService.name_ar}):\n` +
-        `📅 ${formattedDay} الساعة ${formattedTime}\n` +
-        `💵 الكشفية: ${matchedService.price.toLocaleString()} د.ع\n\n` +
-        `إذا يناسبك الموعد، فقط رد بـ (نعم) أو (تمام) لتأكيد الحجز فورياً!`
+        `أهلاً وسهلاً بك يا ${patient.full_name}! سلامتك وما تشوف شر 🩺\n\n` +
+        `الخدمة المقترحة: ${matchedService.name_ar} (السعر: ${matchedService.price.toLocaleString()} د.ع)\n` +
+        `التوقيت المقترح: ${lower.includes("عقبه") ? "بعد غد" : "غداً"} الساعة ${targetDate.toLocaleTimeString("ar-IQ", { hour: "numeric", minute: "2-digit" })}\n\n` +
+        `هل يناسبك هذا التوقيت لتأكيد الحجز؟ (أجب: نعم لتثبيت الحجز)`
       );
     } else {
-      // Ask for name to create their patient profile
+      // New patient, request their name
       session.step = "awaiting_name";
       db.sessions[senderPhone] = session;
 
       return (
-        `أهلاً وسهلاً بك في عيادة النور التخصصية! سلامتك وما تشوف شر 🩺\n\n` +
+        `أهلاً وسهلاً بك في ${currentClinic.name}! سلامتك وما تشوف شر 🩺\n\n` +
         `الخدمة المقترحة: ${matchedService.name_ar} (السعر: ${matchedService.price.toLocaleString()} د.ع)\n` +
-        `التوقيت المقترح: ${formattedDay} الساعة ${formattedTime}\n\n` +
+        `التوقيت المقترح: ${lower.includes("عقبه") ? "بعد غد" : "غداً"} الساعة ${targetDate.toLocaleTimeString("ar-IQ", { hour: "numeric", minute: "2-digit" })}\n\n` +
         `لطفاً، شنو الاسم الكامل لحضرتك حتى نثبت الحجز ونفتح لك ملف بالعيادة؟`
       );
     }
   }
 
-  // Friendly Fallback with context
-  session.step = "idle";
-  db.sessions[senderPhone] = session;
-
+  // Greeting / General Fallback
   return (
-    "أهلاً وسهلاً بك في عيادة النور الطبية التخصصية 👋\n" +
-    "أنا المساعد الآلي التفاعلي للعيادة، كيف أقدر أساعدك اليوم؟\n\n" +
-    "• لحجز موعد أو استشارة: اكتب ما تعاني منه أو اذكر التوقيت الذي تريده (مثلاً: أريد كشف باچر الصبح).\n" +
-    "• للأسعار والخدمات: اكتب (الخدمات والأسعار).\n" +
-    "• للعنوان وساعات العمل: اكتب (وين مكانكم).\n" +
-    "• للتحدث مع موظف الاستقبال: اكتب (مساعدة بشرية)."
+    `أهلاً وسهلاً بك في ${currentClinic.name} 👋\n` +
+    `أنا المساعد الذكي الخاص بالطبيب (${currentClinic.doctor_name}).\n\n` +
+    `كيف أستطيع مساعدتك اليوم؟ يمكنك:\n` +
+    `• حجز موعد جديد (مثال: أريد أحجز كشف باچر الساعة 10 الصبح)\n` +
+    `• الاستفسار عن الخدمات والأسعار\n` +
+    `• معرفة عنوان العيادة وأوقات الدوام\n` +
+    `• تعديل أو إلغاء موعدك السابق`
   );
 }

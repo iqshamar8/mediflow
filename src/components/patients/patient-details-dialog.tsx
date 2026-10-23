@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useClinic } from "@/lib/clinic/context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ export function PatientDetailsDialog({
   onClose,
   onUpdate,
 }: PatientDetailsDialogProps) {
+  const { currentClinic } = useClinic();
   const [activeTab, setActiveTab] = useState<"info" | "appointments" | "payments" | "visits">("info");
   const [appointments, setAppointments] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
@@ -57,9 +59,13 @@ export function PatientDetailsDialog({
     setIsSaving(true);
     setErrorMsg("");
     try {
-      const res = await fetch("/api/patients", {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (currentClinic?.id) {
+        headers["x-clinic-id"] = currentClinic.id;
+      }
+      const res = await fetch(`/api/patients?clinic_id=${currentClinic?.id || ""}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           id: patient.id,
           ...editData,
@@ -86,7 +92,11 @@ export function PatientDetailsDialog({
       return;
     }
     try {
-      const res = await fetch(`/api/patients?id=${patient.id}`, { method: "DELETE" });
+      const headers: Record<string, string> = currentClinic?.id ? { "x-clinic-id": currentClinic.id } : {};
+      const res = await fetch(`/api/patients?id=${patient.id}&clinic_id=${currentClinic?.id || ""}`, {
+        method: "DELETE",
+        headers,
+      });
       if (res.ok) {
         onUpdate();
         onClose();
@@ -109,15 +119,16 @@ export function PatientDetailsDialog({
       });
       loadPatientHistory(patient.id);
     }
-  }, [patient, isOpen]);
+  }, [patient, isOpen, currentClinic?.id]);
 
   async function loadPatientHistory(patientId: string) {
     setIsLoadingHistory(true);
     try {
+      const headers: Record<string, string> = currentClinic?.id ? { "x-clinic-id": currentClinic.id } : {};
       const [aptRes, payRes, visRes] = await Promise.all([
-        fetch("/api/appointments"),
-        fetch("/api/payments"),
-        fetch(`/api/visits?patient_id=${patientId}`),
+        fetch(`/api/appointments?clinic_id=${currentClinic?.id || ""}`, { headers }),
+        fetch(`/api/payments?clinic_id=${currentClinic?.id || ""}`, { headers }),
+        fetch(`/api/visits?patient_id=${patientId}&clinic_id=${currentClinic?.id || ""}`, { headers }),
       ]);
 
       const aptJson = await aptRes.json();

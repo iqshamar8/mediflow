@@ -22,28 +22,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "لا يوجد رقم هاتف مسجل لهذا المريض" }, { status: 400 });
     }
 
+    const clinic = db.clinics?.find((c) => c.id === apt.clinic_id) || db.clinics?.[0] || {
+      name: "عيادة د. أحمد الراوي التخصصية",
+      address: "بغداد - الحارثية - مجمع الكندي الطبي",
+      phone: "+9647711110000",
+    };
+
     const patientName = apt.patient_name || patient?.full_name || "المراجع الكريم";
     const serviceName = apt.service_name || "كشف واستشارة";
     const aptDate = new Date(apt.start_time);
     const dateFormatted = aptDate.toLocaleDateString("ar-IQ", { dateStyle: "full" });
     const timeFormatted = aptDate.toLocaleTimeString("ar-IQ", { hour: "numeric", minute: "2-digit" });
 
-    // Compose polite, official clinic reminder
+    // Compose polite, official clinic reminder customized to this specific doctor's clinic
     const reminderText =
       `تذكير بموعدك الطبي القادم ⏰\n\n` +
       `عزيزي/عزيزتي: ${patientName}،\n` +
-      `نود تذكيرك بموعدك في عيادة النور الطبية التخصصية:\n` +
+      `نود تذكيرك بموعدك في ${clinic.name}:\n` +
       `🩺 الخدمة: ${serviceName}\n` +
       `📅 التاريخ: ${dateFormatted}\n` +
       `⏰ الوقت: الساعة ${timeFormatted}\n` +
-      `📍 العنوان: بغداد - المنصور - شارع 14 رمضان (قرب ساحة الرواد)\n\n` +
+      `📍 العنوان: ${clinic.address}\n\n` +
       `لأي استفسار أو لتعديل الموعد، يمكنك الرد مباشرة على هذه الرسالة.\nنتمنى لك دوام الصحة والعافية!`;
 
     // Log to WhatsApp outbound messages
     const outboundMsg: WhatsAppMessage = {
       id: `msg-rem-manual-${Date.now()}`,
+      clinic_id: apt.clinic_id,
       direction: "outbound",
-      sender_phone: "+9647700000001",
+      sender_phone: clinic.phone || "+9647700000001",
       receiver_phone: phone,
       content: reminderText,
       status: "delivered",
@@ -58,10 +65,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       status: "success",
       message: `تم إرسال التذكير بنجاح للمريض ${patientName} على الرقم (${phone})`,
-      sentAt: apt.last_reminder_sent_at,
-      content: reminderText,
+      reminderText,
     });
   } catch {
-    return NextResponse.json({ error: "فشل إرسال تذكير الواتساب" }, { status: 500 });
+    return NextResponse.json({ error: "فشل إرسال رسالة التذكير" }, { status: 500 });
   }
 }

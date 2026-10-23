@@ -22,18 +22,26 @@ import {
   Stethoscope,
 } from "lucide-react";
 
+import { useClinic } from "@/lib/clinic/context";
+
 export default function WhatsAppPage() {
   const { t } = useI18n();
-  const [messages, setMessages] = useState<any[]>([
-    {
-      id: "msg-001",
-      direction: "outbound",
-      sender_phone: "+9647700000001",
-      content:
-        "أهلاً وسهلاً بك في عيادة النور الطبية التخصصية! 👋\nأنا المساعد الآلي الذكي، كيف أقدر أساعدك اليوم؟ تقدر تكتب لي استفسارك أو أعراضك (مثلاً: أسناني توجعني، وين مكانكم، أو أريد أحجز موعد باچر).",
-      created_at: new Date(Date.now() - 60000).toISOString(),
-    },
-  ]);
+  const { currentClinic } = useClinic();
+  const [messages, setMessages] = useState<any[]>([]);
+
+  // Update initial message when clinic changes
+  React.useEffect(() => {
+    setMessages([
+      {
+        id: `msg-${Date.now()}`,
+        direction: "outbound",
+        sender_phone: currentClinic?.phone || "+9647700000001",
+        content: `أهلاً وسهلاً بك في ${currentClinic?.name || "العيادة الطبية"}! 👋\nأنا المساعد الآلي الذكي الخاص بالطبيب (${currentClinic?.doctor_name || "الطبيب المشرف"}).\nكيف أقدر أساعدك اليوم؟ تقدر تكتب لي استفسارك أو أعراضك (مثلاً: أريد أحجز كشف باچر، كم سعر الخدمات، أو وين مكانكم).`,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+  }, [currentClinic?.id, currentClinic?.name, currentClinic?.doctor_name, currentClinic?.phone]);
+
   const [inputMessage, setInputMessage] = useState("");
   const [patientPhone, setPatientPhone] = useState("+9647711112222");
   const [isLoading, setIsLoading] = useState(false);
@@ -57,13 +65,17 @@ export default function WhatsAppPage() {
     setIsLoading(true);
 
     try {
-      // Dispatch to real Webhook Route Handler
+      // Dispatch to real Webhook Route Handler for this active clinic
       const res = await fetch("/api/whatsapp/webhook", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(currentClinic?.id ? { "x-clinic-id": currentClinic.id } : {}),
+        },
         body: JSON.stringify({
           sender: patientPhone,
           text: userText,
+          clinic_id: currentClinic?.id,
         }),
       });
 
@@ -171,9 +183,9 @@ export default function WhatsAppPage() {
             </CardHeader>
             <CardContent>
               <div className="text-base font-bold font-mono" dir="ltr">
-                +964 770 000 0001
+                {currentClinic?.phone || "+964 770 000 0001"}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">عيادة النور التخصصية</p>
+              <p className="text-xs text-muted-foreground mt-1">{currentClinic?.name || "عيادة د. أحمد الراوي"}</p>
             </CardContent>
           </Card>
         </div>
@@ -187,11 +199,11 @@ export default function WhatsAppPage() {
               </div>
               <div>
                 <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                  <span>محاكي محادثات الواتساب التفاعلي</span>
+                  <span>محاكي محادثات الواتساب — {currentClinic?.name || "العيادة"}</span>
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  جرب محادثة واقعية بلهجة عراقية أو اطلب حجز موعد، استفسر عن الأسعار، أو عدل موعدك
+                  المساعد الآلي للطبيب ({currentClinic?.doctor_name || "الطبيب المشرف"}) — يفهم اللهجة العراقية ويحجز المواعيد تلقائياً في عيادتك فقط
                 </p>
               </div>
             </div>

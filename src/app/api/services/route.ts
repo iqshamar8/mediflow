@@ -1,15 +1,24 @@
 import { NextResponse } from "next/server";
-import { db, Service } from "@/server/mock-db";
+import { db, Service, getRequestClinicId } from "@/server/mock-db";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const clinicId = getRequestClinicId(request);
+
+  // Strict tenant isolation: return services for this clinic
+  const services = (db.services || []).filter(
+    (s) => s.clinic_id === clinicId || (!s.clinic_id && clinicId === "clinic-1")
+  );
+
   return NextResponse.json({
-    data: db.services,
-    total: db.services.length,
+    data: services,
+    total: services.length,
+    clinic_id: clinicId,
   });
 }
 
 export async function POST(request: Request) {
   try {
+    const clinicId = getRequestClinicId(request);
     const body = await request.json();
     const { name_ar, name_en, duration_minutes, price } = body;
 
@@ -19,6 +28,7 @@ export async function POST(request: Request) {
 
     const newService: Service = {
       id: `srv-${Date.now()}`,
+      clinic_id: clinicId,
       name_ar,
       name_en: name_en || name_ar,
       duration_minutes: Number(duration_minutes) || 30,
@@ -37,6 +47,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const clinicId = getRequestClinicId(request);
     const body = await request.json();
     const { id, name_ar, name_en, duration_minutes, price, is_active } = body;
 
@@ -44,9 +55,11 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "معرف الخدمة مطلوب" }, { status: 400 });
     }
 
-    const srv = db.services.find((s) => s.id === id);
+    const srv = db.services.find(
+      (s) => s.id === id && (s.clinic_id === clinicId || (!s.clinic_id && clinicId === "clinic-1"))
+    );
     if (!srv) {
-      return NextResponse.json({ error: "الخدمة غير موجودة" }, { status: 404 });
+      return NextResponse.json({ error: "الخدمة غير موجودة في هذه العيادة" }, { status: 404 });
     }
 
     if (name_ar) srv.name_ar = name_ar;
@@ -63,6 +76,7 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const clinicId = getRequestClinicId(request);
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -70,9 +84,11 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "معرف الخدمة مطلوب" }, { status: 400 });
     }
 
-    const index = db.services.findIndex((s) => s.id === id);
+    const index = db.services.findIndex(
+      (s) => s.id === id && (s.clinic_id === clinicId || (!s.clinic_id && clinicId === "clinic-1"))
+    );
     if (index === -1) {
-      return NextResponse.json({ error: "الخدمة غير موجودة" }, { status: 404 });
+      return NextResponse.json({ error: "الخدمة غير موجودة في هذه العيادة" }, { status: 404 });
     }
 
     db.services.splice(index, 1);

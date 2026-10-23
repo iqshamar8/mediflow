@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, Patient } from "@/server/mock-db";
+import { db, Patient, getRequestClinicId } from "@/server/mock-db";
 
 export interface ImportPatientRow {
   full_name: string;
@@ -13,6 +13,7 @@ export interface ImportPatientRow {
 
 export async function POST(request: Request) {
   try {
+    const clinicId = getRequestClinicId(request);
     const body = await request.json();
     const rows: ImportPatientRow[] = body.patients;
 
@@ -25,12 +26,14 @@ export async function POST(request: Request) {
     const errors: Array<{ row: number; name: string; phone: string; reason: string }> = [];
     const addedPatients: Patient[] = [];
 
-    // Track existing phones in a set for quick lookup
+    // Track existing phones strictly within THIS clinic
     const existingPhones = new Set(
-      db.patients.map((p) => p.phone.replace(/[\s\-\(\)]/g, ""))
+      (db.patients || [])
+        .filter((p) => p.clinic_id === clinicId || (!p.clinic_id && clinicId === "clinic-1"))
+        .map((p) => p.phone.replace(/[\s\-\(\)]/g, ""))
     );
 
-    let nextNumberIndex = db.patients.length + 1001;
+    let nextNumberIndex = (db.patients?.length || 0) + 1001;
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -58,10 +61,10 @@ export async function POST(request: Request) {
         phone = "+964" + phone;
       }
 
-      // Check if phone already registered in clinic
+      // Check if phone already registered in this clinic
       if (existingPhones.has(phone)) {
         skippedCount++;
-        errors.push({ row: rowNum, name, phone, reason: "رقم الهاتف مسجل مسبقاً في العيادة (مكرر)" });
+        errors.push({ row: rowNum, name, phone, reason: "رقم الهاتف مسجل مسبقاً في عيادتك (مكرر)" });
         continue;
       }
 
@@ -74,6 +77,7 @@ export async function POST(request: Request) {
 
       const newPatient: Patient = {
         id: `pat-import-${Date.now()}-${i}`,
+        clinic_id: clinicId,
         patient_number: `P-${nextNumberIndex++}`,
         full_name: name,
         phone,
@@ -94,6 +98,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       status: "success",
+      clinic_id: clinicId,
       totalProcessed: rows.length,
       importedCount,
       skippedCount,
