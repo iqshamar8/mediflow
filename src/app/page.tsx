@@ -17,8 +17,21 @@ import {
   MessageCircle,
   Clock,
   ArrowUpRight,
+  TrendingUp,
+  BarChart3,
 } from "lucide-react";
 import Link from "next/link";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  BarChart,
+  Bar,
+  CartesianGrid,
+} from "recharts";
 
 interface DashboardData {
   totalPatients: number;
@@ -189,6 +202,99 @@ export default function DashboardPage() {
               <p className="text-xs text-muted-foreground mt-1">
                 مساعد الحجز التلقائي الذكي نشط
               </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Analytics & Financial Trends Section */}
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Chart 1: Revenue Trends */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div>
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-600" />
+                  <span>حركة الإيرادات والتحصيل الأسبوعي</span>
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  تتبع المقبوضات المالية بالدينار العراقي (IQD)
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-2">
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={[
+                      { day: "الأحد", revenue: 45000 },
+                      { day: "الاثنين", revenue: 65000 },
+                      { day: "الثلاثاء", revenue: 90000 },
+                      { day: "الأربعاء", revenue: 75000 },
+                      { day: "الخميس", revenue: 115000 },
+                      { day: "السبت", revenue: 60000 },
+                    ]}
+                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0d9488" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#0d9488" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                    <XAxis dataKey="day" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v / 1000}k`} />
+                    <Tooltip
+                      formatter={(value: any) => [`${Number(value).toLocaleString()} د.ع`, "الإيرادات"]}
+                      labelStyle={{ fontWeight: "bold" }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#0d9488"
+                      strokeWidth={2.5}
+                      fillOpacity={1}
+                      fill="url(#revenueGrad)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Chart 2: Services & Bookings Breakdown */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div>
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-primary" />
+                  <span>توزيع الحجوزات حسب الخدمات الطبية</span>
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  نسبة الإقبال على العيادات التخصصية
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-2">
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={[
+                      { service: "كشف عام", count: 8 },
+                      { service: "سونار", count: 5 },
+                      { service: "أسنان", count: 4 },
+                      { service: "مراجعة", count: 6 },
+                    ]}
+                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                    <XAxis dataKey="service" tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(value: any) => [`${value} مريض`, "الحجوزات"]} />
+                    <Bar dataKey="count" fill="#14b8a6" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
         </div>

@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n/context";
-import { PlusCircle, Search, User, Phone, Calendar, CheckCircle2, X, FileSpreadsheet } from "lucide-react";
+import { PlusCircle, Search, User, Phone, Calendar, CheckCircle2, X, FileSpreadsheet, Download, ExternalLink } from "lucide-react";
 import { PatientImportDialog } from "@/components/patients/patient-import-dialog";
+import { PatientDetailsDialog } from "@/components/patients/patient-details-dialog";
 
 export default function PatientsPage() {
   const { t } = useI18n();
@@ -16,6 +17,32 @@ export default function PatientsPage() {
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
+
+  function handleExportPatientsCSV() {
+    const headers = ["رقم الملف", "الاسم الكامل", "رقم الهاتف", "تاريخ الميلاد", "الجنس", "موافقة الواتساب", "ملاحظات"];
+    const rows = filteredPatients.map((p) => [
+      p.patient_number,
+      p.full_name,
+      p.phone,
+      p.date_of_birth || "",
+      p.gender === "female" ? "أنثى" : "ذكر",
+      p.whatsapp_consent ? "نعم" : "لا",
+      p.admin_notes || "",
+    ]);
+
+    const csvContent =
+      "data:text/csv;charset=utf-8,\uFEFF" +
+      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `mediflow-patients-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
   const [formData, setFormData] = useState({
     full_name: "",
     phone: "",
@@ -100,6 +127,15 @@ export default function PatientsPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
+              onClick={handleExportPatientsCSV}
+              className="gap-2"
+              title="تصدير قائمة المرضى إلى ملف CSV"
+            >
+              <Download className="w-4 h-4 text-muted-foreground" />
+              <span>تصدير CSV</span>
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => setIsImportModalOpen(true)}
               className="gap-2 border-emerald-600/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
             >
@@ -146,18 +182,23 @@ export default function PatientsPage() {
                     <th className="py-3 px-4 text-start font-medium">{t("dateOfBirth")}</th>
                     <th className="py-3 px-4 text-start font-medium">{t("whatsappConsent")}</th>
                     <th className="py-3 px-4 text-start font-medium">ملاحظات</th>
+                    <th className="py-3 px-4 text-center font-medium">الملف الطبي</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filteredPatients.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                      <td colSpan={7} className="py-8 text-center text-muted-foreground">
                         {t("noPatientsFound")}
                       </td>
                     </tr>
                   ) : (
                     filteredPatients.map((patient) => (
-                      <tr key={patient.id} className="hover:bg-muted/40 transition-colors">
+                      <tr
+                        key={patient.id}
+                        className="hover:bg-muted/40 transition-colors cursor-pointer"
+                        onClick={() => setSelectedPatient(patient)}
+                      >
                         <td className="py-3 px-4 font-mono font-medium text-primary">
                           {patient.patient_number}
                         </td>
@@ -185,6 +226,17 @@ export default function PatientsPage() {
                         </td>
                         <td className="py-3 px-4 text-muted-foreground text-xs truncate max-w-xs">
                           {patient.admin_notes || "—"}
+                        </td>
+                        <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSelectedPatient(patient)}
+                            className="h-7 px-2.5 text-xs text-primary hover:bg-primary/10 gap-1 font-medium"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>فتح الملف</span>
+                          </Button>
                         </td>
                       </tr>
                     ))
@@ -298,6 +350,14 @@ export default function PatientsPage() {
           isOpen={isImportModalOpen}
           onClose={() => setIsImportModalOpen(false)}
           onImportSuccess={fetchPatients}
+        />
+
+        {/* Patient Full Details / Medical History Dialog */}
+        <PatientDetailsDialog
+          patient={selectedPatient}
+          isOpen={Boolean(selectedPatient)}
+          onClose={() => setSelectedPatient(null)}
+          onUpdate={fetchPatients}
         />
       </div>
     </AppLayout>

@@ -53,6 +53,19 @@ export interface Payment {
   notes?: string;
 }
 
+export interface Visit {
+  id: string;
+  patient_id: string;
+  patient_name?: string;
+  doctor_name: string;
+  service_name?: string;
+  visit_date: string;
+  diagnosis: string;
+  clinical_notes: string;
+  prescription: string;
+  follow_up_date?: string;
+}
+
 export interface WhatsAppMessage {
   id: string;
   direction: "inbound" | "outbound";
@@ -82,6 +95,7 @@ declare global {
     patients: Patient[];
     appointments: Appointment[];
     payments: Payment[];
+    visits: Visit[];
     messages: WhatsAppMessage[];
     sessions: Record<string, ConversationSession>;
   } | undefined;
@@ -211,6 +225,31 @@ function initDb() {
         payment_date: new Date().toISOString(),
         reference_number: "REC-9001",
         notes: "دفعة كاملة عند الحجز",
+      },
+    ],
+    visits: [
+      {
+        id: "vis-001",
+        patient_id: "pat-001",
+        patient_name: "علي حسن الكرخي",
+        doctor_name: "د. أحمد الراوي",
+        service_name: "كشف عام واستشارة",
+        visit_date: new Date(Date.now() - 86400000 * 3).toISOString(),
+        diagnosis: "التهاب خفيف في القصبات الهوائية مع ارتفاع طفيف في ضغط الدم",
+        clinical_notes: "تم فحص الصدر والضغط. يُنصح بالراحة والإكثار من السوائل ومراجعة بعد 5 أيام.",
+        prescription: "Amoxicillin 500mg (3 times/day) + Paracetamol 500mg",
+        follow_up_date: new Date(Date.now() + 86400000 * 5).toISOString().slice(0, 10),
+      },
+      {
+        id: "vis-002",
+        patient_id: "pat-002",
+        patient_name: "مريم أحمد البياتي",
+        doctor_name: "د. سارة العبيدي",
+        service_name: "فحص موجات فوق صوتية (سونار)",
+        visit_date: new Date(Date.now() - 86400000 * 10).toISOString(),
+        diagnosis: "فحص روتيني سليم للبطن والحوض",
+        clinical_notes: "جميع الأعضاء الحيوية طبيعية ولا توجد أي علامات تضخم.",
+        prescription: "فيتامين D3 ومكملات غذائية عامة",
       },
     ],
     messages: [

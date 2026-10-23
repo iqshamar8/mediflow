@@ -1,37 +1,102 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n/context";
-import { FileText, ShieldAlert, User, Clock } from "lucide-react";
+import {
+  FileText,
+  ShieldAlert,
+  User,
+  Clock,
+  PlusCircle,
+  Search,
+  Calendar,
+  X,
+  CheckCircle2,
+  Stethoscope,
+  Pill,
+} from "lucide-react";
 
 export default function VisitsPage() {
   const { t } = useI18n();
+  const [visits, setVisits] = useState<any[]>([]);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    patient_id: "",
+    doctor_name: "د. أحمد الراوي",
+    service_name: "كشف عام واستشارة",
+    diagnosis: "",
+    clinical_notes: "",
+    prescription: "",
+    follow_up_date: "",
+  });
 
-  const visits = [
-    {
-      id: "vis-001",
-      patient_name: "علي حسن الكرخي",
-      doctor_name: "د. أحمد الراوي",
-      service_name: "كشف عام واستشارة",
-      visit_date: new Date(Date.now() - 86400000 * 3).toISOString(),
-      diagnosis: "التهاب خفيف في القصبات الهوائية مع ارتفاع طفيف في ضغط الدم",
-      clinical_notes: "تم وصف مضاد حيوي وخافض حرارة. مراجعة بعد 5 أيام.",
-      prescription: "Amoxicillin 500mg (3 times/day) + Paracetamol 500mg",
-    },
-    {
-      id: "vis-002",
-      patient_name: "مريم أحمد البياتي",
-      doctor_name: "د. سارة العبيدي",
-      service_name: "فحص موجات فوق صوتية (سونار)",
-      visit_date: new Date(Date.now() - 86400000 * 10).toISOString(),
-      diagnosis: "فحص روتيني سليم للبطن والحوض",
-      clinical_notes: "جميع الأعضاء الحيوية طبيعية ولا توجد أي علامات تضخم.",
-      prescription: "فيتامين D3 ومكملات غذائية عامة",
-    },
-  ];
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadData() {
+    try {
+      const [visRes, patRes] = await Promise.all([
+        fetch("/api/visits"),
+        fetch("/api/patients"),
+      ]);
+      const visJson = await visRes.json();
+      const patJson = await patRes.json();
+
+      setVisits(visJson.data || []);
+      setPatients(patJson.data || []);
+
+      if (patJson.data?.length > 0) {
+        setFormData((prev) => ({ ...prev, patient_id: patJson.data[0].id }));
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  async function handleAddVisit(e: React.FormEvent) {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const res = await fetch("/api/visits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (res.ok) {
+        await loadData();
+        setIsModalOpen(false);
+        setFormData((prev) => ({
+          ...prev,
+          diagnosis: "",
+          clinical_notes: "",
+          prescription: "",
+          follow_up_date: "",
+        }));
+      }
+    } catch {
+      // Error
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const filteredVisits = visits.filter(
+    (v) =>
+      v.patient_name?.toLowerCase().includes(search.toLowerCase()) ||
+      v.diagnosis?.toLowerCase().includes(search.toLowerCase()) ||
+      v.doctor_name?.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <AppLayout>
@@ -40,58 +105,221 @@ export default function VisitsPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{t("navVisits")}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              السجلات السريرية المحمية، التشخيصات، والملاحظات الطبية المعتمدة
+              السجلات السريرية المحمية، التشخيصات، والوصفات الطبية المعتمدة
             </p>
           </div>
-          <Badge variant="outline" className="gap-1.5 py-1 px-3 border-primary/30 text-primary">
-            <ShieldAlert className="w-3.5 h-3.5" />
-            <span>محمي بسياسة الصلاحيات الطبية (RBAC & RLS)</span>
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="gap-1.5 py-1 px-3 border-primary/30 text-primary hidden sm:inline-flex">
+              <ShieldAlert className="w-3.5 h-3.5" />
+              <span>محمي بسياسة الصلاحيات (RBAC & RLS)</span>
+            </Badge>
+            <Button onClick={() => setIsModalOpen(true)} className="gap-2">
+              <PlusCircle className="w-4 h-4" />
+              <span>تسجيل زيارة سريرية</span>
+            </Button>
+          </div>
         </div>
 
+        {/* Search bar */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute top-3 start-3 text-muted-foreground" />
+              <Input
+                placeholder="ابحث باسم المريض، الطبيب المعالج، أو التشخيص الطبي..."
+                className="ps-10"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Visits List */}
         <div className="space-y-4">
-          {visits.map((visit) => (
-            <Card key={visit.id} className="overflow-hidden">
-              <CardHeader className="bg-secondary/30 pb-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
-                      <User className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-base font-bold">{visit.patient_name}</CardTitle>
-                      <p className="text-xs text-muted-foreground">{visit.doctor_name}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>{new Date(visit.visit_date).toLocaleDateString("ar-IQ", { dateStyle: "long" })}</span>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-4 space-y-3">
-                <div>
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                    التشخيص الطبي:
-                  </h4>
-                  <p className="text-sm font-medium text-foreground">{visit.diagnosis}</p>
-                </div>
-
-                <div>
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                    الملاحظات السريرية:
-                  </h4>
-                  <p className="text-sm text-muted-foreground">{visit.clinical_notes}</p>
-                </div>
-
-                <div className="p-3 bg-secondary/50 rounded-xl border text-xs space-y-1">
-                  <span className="font-semibold text-primary block">الوصفة الطبية والعلاج:</span>
-                  <p className="font-mono text-muted-foreground">{visit.prescription}</p>
-                </div>
+          {filteredVisits.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                لا توجد سجلات طبية مطابقة للبحث.
               </CardContent>
             </Card>
-          ))}
+          ) : (
+            filteredVisits.map((visit) => (
+              <Card key={visit.id} className="overflow-hidden hover:border-primary/40 transition-colors">
+                <CardHeader className="bg-secondary/40 pb-3 border-b">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                        <User className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base font-bold text-foreground">
+                          {visit.patient_name}
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground flex items-center gap-2">
+                          <span>{visit.doctor_name}</span>
+                          {visit.service_name && (
+                            <>
+                              <span>•</span>
+                              <span>{visit.service_name}</span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>
+                        {new Date(visit.visit_date).toLocaleDateString("ar-IQ", {
+                          dateStyle: "long",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-4 space-y-3.5">
+                  <div>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                      <Stethoscope className="w-3.5 h-3.5 text-primary" />
+                      <span>التشخيص الطبي:</span>
+                    </h4>
+                    <p className="text-sm font-semibold text-foreground">{visit.diagnosis}</p>
+                  </div>
+
+                  {visit.clinical_notes && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                        الملاحظات السريرية والفحص:
+                      </h4>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {visit.clinical_notes}
+                      </p>
+                    </div>
+                  )}
+
+                  {visit.prescription && (
+                    <div className="p-3 bg-secondary/60 rounded-xl border text-xs space-y-1">
+                      <span className="font-semibold text-primary flex items-center gap-1.5">
+                        <Pill className="w-3.5 h-3.5" />
+                        <span>الوصفة الطبية والعلاج المقترح:</span>
+                      </span>
+                      <p className="font-mono text-muted-foreground text-xs leading-relaxed">
+                        {visit.prescription}
+                      </p>
+                    </div>
+                  )}
+
+                  {visit.follow_up_date && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1 border-t">
+                      <Calendar className="w-3.5 h-3.5 text-primary" />
+                      <span>موعد المراجعة المقترح: </span>
+                      <strong className="text-foreground">{visit.follow_up_date}</strong>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
+
+        {/* Add Visit Modal */}
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-card w-full max-w-lg rounded-2xl border shadow-2xl p-6 relative">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="absolute top-5 end-5 text-muted-foreground hover:text-foreground p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <h2 className="text-xl font-bold mb-4">تسجيل تقرير سريري / زيارة طبية</h2>
+
+              <form onSubmit={handleAddVisit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold block mb-1">المريض *</label>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                    value={formData.patient_id}
+                    onChange={(e) => setFormData({ ...formData, patient_id: e.target.value })}
+                  >
+                    {patients.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.full_name} ({p.patient_number})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold block mb-1">الطبيب المعالج</label>
+                    <Input
+                      value={formData.doctor_name}
+                      onChange={(e) => setFormData({ ...formData, doctor_name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1">الخدمة الطبية</label>
+                    <Input
+                      value={formData.service_name}
+                      onChange={(e) => setFormData({ ...formData, service_name: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold block mb-1">التشخيص السريري *</label>
+                  <Input
+                    required
+                    placeholder="التشخيص الأولي أو النهائي..."
+                    value={formData.diagnosis}
+                    onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold block mb-1">الملاحظات الطبية والفحص</label>
+                  <textarea
+                    rows={3}
+                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="تفاصيل الفحص السريري، العلامات الحيوية، والنتائج..."
+                    value={formData.clinical_notes}
+                    onChange={(e) => setFormData({ ...formData, clinical_notes: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold block mb-1">الوصفة الدوائية (العلاج)</label>
+                  <Input
+                    placeholder="الأدوية، الجرعات، وطريقة الاستعمال..."
+                    value={formData.prescription}
+                    onChange={(e) => setFormData({ ...formData, prescription: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold block mb-1">تاريخ المراجعة (اختياري)</label>
+                  <Input
+                    type="date"
+                    value={formData.follow_up_date}
+                    onChange={(e) => setFormData({ ...formData, follow_up_date: e.target.value })}
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4 border-t">
+                  <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
+                    إلغاء
+                  </Button>
+                  <Button type="submit" disabled={isLoading} className="gap-2">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{isLoading ? "جاري الحفظ..." : "حفظ التقرير الطبي"}</span>
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </AppLayout>
   );
