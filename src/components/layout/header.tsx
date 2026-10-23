@@ -4,15 +4,17 @@ import React from "react";
 import { useI18n } from "@/lib/i18n/context";
 import { useTheme } from "@/lib/theme/context";
 import { useClinic } from "@/lib/clinic/context";
+import { useRole, UserRole } from "@/lib/auth/role-context";
 import { ClinicSwitcher } from "@/components/clinic/clinic-switcher";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Globe, Bell, Sun, Moon } from "lucide-react";
+import { Globe, Bell, Sun, Moon, ShieldCheck, UserCheck } from "lucide-react";
 
 export function Header() {
   const { language, setLanguage, t } = useI18n();
   const { isDark, toggleTheme } = useTheme();
   const { currentClinic } = useClinic();
+  const { role, setRole, roleNameAr } = useRole();
 
   return (
     <header className="h-16 border-b bg-card/60 backdrop-blur px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30">
@@ -32,6 +34,22 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Staff Role Switcher */}
+        <div className="hidden sm:flex items-center gap-1 border border-border rounded-xl px-2 py-1 bg-muted/40">
+          <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+          <span className="text-[10px] text-muted-foreground font-semibold">الدور:</span>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value as UserRole)}
+            className="text-xs bg-transparent font-bold text-foreground focus:outline-none cursor-pointer"
+            title="تبديل صلاحية المستخدم للتجربة والمعاينة"
+          >
+            <option value="doctor">👨‍⚕️ طبيب (كامل)</option>
+            <option value="receptionist">👩‍💼 استقبال</option>
+            <option value="cashier">💼 كاشير</option>
+          </select>
+        </div>
+
         {/* Night Mode / Theme Toggle */}
         <Button
           variant="outline"
@@ -77,7 +95,7 @@ export function Header() {
           </div>
           <div className="hidden lg:block text-start leading-tight">
             <p className="text-xs font-semibold">{currentClinic?.doctor_name || "د. أحمد الراوي"}</p>
-            <p className="text-[10px] text-muted-foreground">{t("roleOwner")}</p>
+            <p className="text-[10px] text-muted-foreground">{roleNameAr}</p>
           </div>
         </div>
       </div>

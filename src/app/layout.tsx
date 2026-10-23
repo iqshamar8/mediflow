@@ -3,6 +3,7 @@ import "./globals.css";
 import { I18nProvider } from "@/lib/i18n/context";
 import { ThemeProvider } from "@/lib/theme/context";
 import { ClinicProvider } from "@/lib/clinic/context";
+import { RoleProvider } from "@/lib/auth/role-context";
 
 export const metadata: Metadata = {
   title: "MediFlow CRM — إدارة العيادات والمواعيد",
@@ -20,7 +21,9 @@ export default function RootLayout({
         <ThemeProvider>
           <I18nProvider>
             <ClinicProvider>
-              {children}
+              <RoleProvider>
+                {children}
+              </RoleProvider>
             </ClinicProvider>
           </I18nProvider>
         </ThemeProvider>

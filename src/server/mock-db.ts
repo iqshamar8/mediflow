@@ -107,6 +107,58 @@ export interface ConversationSession {
   lastInteraction: string;
 }
 
+export interface PrescriptionItem {
+  medication_name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions?: string;
+}
+
+export interface Prescription {
+  id: string;
+  clinic_id?: string;
+  patient_id: string;
+  patient_name?: string;
+  patient_phone?: string;
+  doctor_name: string;
+  visit_id?: string;
+  diagnosis: string;
+  items: PrescriptionItem[];
+  general_advice?: string;
+  created_at: string;
+}
+
+export interface QueueItem {
+  id: string;
+  clinic_id?: string;
+  queue_number: number;
+  appointment_id?: string;
+  patient_id: string;
+  patient_name: string;
+  patient_phone: string;
+  service_name: string;
+  doctor_name: string;
+  status: "waiting" | "in_consultation" | "completed" | "cancelled";
+  arrival_time: string;
+  called_at?: string;
+  completed_at?: string;
+}
+
+export interface MedicalAttachment {
+  id: string;
+  clinic_id?: string;
+  patient_id: string;
+  patient_name?: string;
+  file_name: string;
+  file_type: string;
+  file_size_kb: number;
+  category: "sonar" | "xray" | "lab" | "report";
+  file_url: string;
+  notes?: string;
+  uploaded_at: string;
+}
+
 // Global in-memory storage to survive hot-reloads during dev session
 declare global {
   // eslint-disable-next-line no-var
@@ -117,6 +169,9 @@ declare global {
     appointments: Appointment[];
     payments: Payment[];
     visits: Visit[];
+    prescriptions: Prescription[];
+    queue: QueueItem[];
+    attachments: MedicalAttachment[];
     messages: WhatsAppMessage[];
     sessions: Record<string, ConversationSession>;
   } | undefined;
@@ -551,6 +606,197 @@ function initDb() {
         content: "أهلاً وسهلاً بك في عيادة د. أحمد الراوي! المواعيد المتاحة غداً: 10:00 صباحاً أو 11:30 صباحاً. أيهما يناسبك؟",
         status: "delivered",
         created_at: new Date(Date.now() - 3600000 * 3 + 10000).toISOString(),
+      },
+    ],
+    prescriptions: [
+      {
+        id: "rx-001",
+        clinic_id: "clinic-1",
+        patient_id: "pat-001",
+        patient_name: "علي حسن الكرخي",
+        patient_phone: "+9647711112222",
+        doctor_name: "د. أحمد الراوي",
+        diagnosis: "التهاب حاد في القصبات مع ارتفاع ضغط الدم",
+        items: [
+          {
+            medication_name: "Amoxicillin / Clavulanate (Augmentin) 1g",
+            dosage: "قرص واحد",
+            frequency: "مرتين يومياً (كل 12 ساعة)",
+            duration: "لمدة 7 أيام",
+            instructions: "يؤخذ في بداية الوجبة لتفادي اضطراب المعدة",
+          },
+          {
+            medication_name: "Paracetamol 500mg",
+            dosage: "قرص أو قرصين",
+            frequency: "عند اللزوم (بين الجرعات 6 ساعات)",
+            duration: "لمدة 5 أيام",
+            instructions: "لخفض الحرارة وتسكين الآلام الصدرية",
+          },
+          {
+            medication_name: "Amlodipine 5mg",
+            dosage: "قرص واحد",
+            frequency: "مرة واحدة يومياً صباحاً",
+            duration: "علاج مستمر شهر",
+            instructions: "مع قياس ضغط الدم وتسجيل القراءات اليومية",
+          },
+        ],
+        general_advice: "الراحة التامة في الفراش، الإكثار من السوائل الدافئة والشوربة، والامتناع عن المجهود الشاق والملح.",
+        created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+      },
+      {
+        id: "rx-101",
+        clinic_id: "clinic-2",
+        patient_id: "pat-101",
+        patient_name: "مريم أحمد البياتي",
+        patient_phone: "+9647722223333",
+        doctor_name: "د. سارة العبيدي",
+        diagnosis: "فحص سونار حمل روتيني في الثلث الثاني - سليم",
+        items: [
+          {
+            medication_name: "Folic Acid 5mg",
+            dosage: "قرص واحد",
+            frequency: "مرة واحدة يومياً",
+            duration: "طوال فترة الحمل",
+            instructions: "يؤخذ بعد وجبة الإفطار",
+          },
+          {
+            medication_name: "Ferrous Sulfate + Vitamin C",
+            dosage: "كبسولة واحدة",
+            frequency: "مرة واحدة يومياً",
+            duration: "لمدة شهرين",
+            instructions: "مع عصير برتقال ويفضل تجنب الشاي ساعتين بعده",
+          },
+        ],
+        general_advice: "تغذية متوازنة، شرب 2-3 لتر ماء يومياً، ومراجعة دورية للسونار بعد 4 أسابيع.",
+        created_at: new Date(Date.now() - 86400000 * 10).toISOString(),
+      },
+    ],
+    queue: [
+      // Clinic 1 Queue
+      {
+        id: "q-001",
+        clinic_id: "clinic-1",
+        queue_number: 1,
+        appointment_id: "apt-001",
+        patient_id: "pat-001",
+        patient_name: "علي حسن الكرخي",
+        patient_phone: "+9647711112222",
+        service_name: "كشف عام واستشارة باطنية",
+        doctor_name: "د. أحمد الراوي",
+        status: "in_consultation",
+        arrival_time: "09:45",
+        called_at: "10:05",
+      },
+      {
+        id: "q-002",
+        clinic_id: "clinic-1",
+        queue_number: 2,
+        appointment_id: "apt-002",
+        patient_id: "pat-002",
+        patient_name: "مصطفى جاسم الجبوري",
+        patient_phone: "+9647711113333",
+        service_name: "متابعة ضغط الدم والسكري",
+        doctor_name: "د. أحمد الراوي",
+        status: "waiting",
+        arrival_time: "10:15",
+      },
+      {
+        id: "q-003",
+        clinic_id: "clinic-1",
+        queue_number: 3,
+        patient_id: "pat-003",
+        patient_name: "John Doe",
+        patient_phone: "+9647733334444",
+        service_name: "تخطيط قلب كهربائي (ECG)",
+        doctor_name: "د. أحمد الراوي",
+        status: "waiting",
+        arrival_time: "10:30",
+      },
+
+      // Clinic 2 Queue
+      {
+        id: "q-101",
+        clinic_id: "clinic-2",
+        queue_number: 1,
+        appointment_id: "apt-101",
+        patient_id: "pat-101",
+        patient_name: "مريم أحمد البياتي",
+        patient_phone: "+9647722223333",
+        service_name: "فحص سونار بطن وحوض شامل",
+        doctor_name: "د. سارة العبيدي",
+        status: "in_consultation",
+        arrival_time: "10:00",
+        called_at: "10:10",
+      },
+      {
+        id: "q-102",
+        clinic_id: "clinic-2",
+        queue_number: 2,
+        appointment_id: "apt-102",
+        patient_id: "pat-102",
+        patient_name: "نور الهدى التميمي",
+        patient_phone: "+9647722224444",
+        service_name: "سونار الغدة الدرقية والأنسجة",
+        doctor_name: "د. سارة العبيدي",
+        status: "waiting",
+        arrival_time: "10:20",
+      },
+
+      // Clinic 3 Queue
+      {
+        id: "q-201",
+        clinic_id: "clinic-3",
+        queue_number: 1,
+        appointment_id: "apt-201",
+        patient_id: "pat-201",
+        patient_name: "عمر كمال الدليمي",
+        patient_phone: "+9647733335555",
+        service_name: "تنظيف أسنان وإزالة التكلسات",
+        doctor_name: "د. حيدر الأسدي",
+        status: "in_consultation",
+        arrival_time: "11:00",
+        called_at: "11:15",
+      },
+    ],
+    attachments: [
+      {
+        id: "att-001",
+        clinic_id: "clinic-1",
+        patient_id: "pat-001",
+        patient_name: "علي حسن الكرخي",
+        file_name: "ECG_Heart_Scan_Ali.pdf",
+        file_type: "application/pdf",
+        file_size_kb: 420,
+        category: "report",
+        file_url: "/placeholder-ecg.pdf",
+        notes: "تخطيط قلب كهربائي أولي يظهر انتظام دقات القلب مع ارتفاع ضغط طفيف",
+        uploaded_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+      },
+      {
+        id: "att-002",
+        clinic_id: "clinic-1",
+        patient_id: "pat-001",
+        patient_name: "علي حسن الكرخي",
+        file_name: "Chest_XRay_Digital.png",
+        file_type: "image/png",
+        file_size_kb: 1250,
+        category: "xray",
+        file_url: "/placeholder-xray.png",
+        notes: "أشعة سينية للصدر تبين سلامة الرئتين من أي ارتشاحات",
+        uploaded_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+      },
+      {
+        id: "att-101",
+        clinic_id: "clinic-2",
+        patient_id: "pat-101",
+        patient_name: "مريم أحمد البياتي",
+        file_name: "Sonar_4D_Baby_Scan.png",
+        file_type: "image/png",
+        file_size_kb: 2180,
+        category: "sonar",
+        file_url: "/placeholder-sonar.png",
+        notes: "سونار رباعي الأبعاد للجنين في الأسبوع 22 - تشريح طبيعي وحجم سليم",
+        uploaded_at: new Date(Date.now() - 86400000 * 10).toISOString(),
       },
     ],
     sessions: {},

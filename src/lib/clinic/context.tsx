@@ -42,8 +42,9 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
   const fetchClinics = useCallback(async () => {
     try {
       const storedId = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+      const clinicHeaders: Record<string, string> = storedId ? { "x-clinic-id": storedId } : {};
       const res = await fetch("/api/clinics", {
-        headers: storedId ? { "x-clinic-id": storedId } : {},
+        headers: clinicHeaders,
       });
       if (!res.ok) throw new Error("Failed to fetch clinics");
       const json = await res.json();
