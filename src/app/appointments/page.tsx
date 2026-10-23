@@ -94,10 +94,38 @@ export default function AppointmentsPage() {
     }
   }
 
-  // 1. Book New Appointment
+  // 1. Open & Book New Appointment
+  function handleOpenNewAppointment() {
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 1); // Tomorrow
+    defaultDate.setHours(10, 0, 0, 0);
+    const year = defaultDate.getFullYear();
+    const month = String(defaultDate.getMonth() + 1).padStart(2, "0");
+    const day = String(defaultDate.getDate()).padStart(2, "0");
+    const formatted = `${year}-${month}-${day}T10:00`;
+
+    setFormData((prev) => ({
+      ...prev,
+      start_time: formatted,
+      notes: "",
+    }));
+    setErrorMsg("");
+    setIsModalOpen(true);
+  }
+
   async function handleBookAppointment(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg("");
+
+    if (!formData.patient_id) {
+      setErrorMsg("يرجى اختيار المريض أولاً");
+      return;
+    }
+    if (!formData.start_time) {
+      setErrorMsg("يرجى تحديد تاريخ ووقت الموعد من التقويم");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -147,6 +175,11 @@ export default function AppointmentsPage() {
   async function handleSaveEdit(e: React.FormEvent) {
     e.preventDefault();
     if (!editingApt) return;
+
+    if (!editFormData.start_time) {
+      setEditErrorMsg("يرجى تحديد تاريخ ووقت الموعد");
+      return;
+    }
 
     setEditErrorMsg("");
     setIsLoading(true);
@@ -291,7 +324,7 @@ export default function AppointmentsPage() {
               إدارة وتأكيد وتعديل وإلغاء المواعيد، مع فحص التعارض الزمني وإرسال تذكيرات الواتساب
             </p>
           </div>
-          <Button onClick={() => setIsModalOpen(true)} className="gap-2">
+          <Button onClick={handleOpenNewAppointment} className="gap-2">
             <CalendarPlus className="w-4 h-4" />
             <span>{t("newAppointment")}</span>
           </Button>
