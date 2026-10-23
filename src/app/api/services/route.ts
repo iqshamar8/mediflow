@@ -34,3 +34,50 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create service" }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, name_ar, name_en, duration_minutes, price, is_active } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "معرف الخدمة مطلوب" }, { status: 400 });
+    }
+
+    const srv = db.services.find((s) => s.id === id);
+    if (!srv) {
+      return NextResponse.json({ error: "الخدمة غير موجودة" }, { status: 404 });
+    }
+
+    if (name_ar) srv.name_ar = name_ar;
+    if (name_en !== undefined) srv.name_en = name_en;
+    if (duration_minutes !== undefined) srv.duration_minutes = Number(duration_minutes);
+    if (price !== undefined) srv.price = Number(price);
+    if (is_active !== undefined) srv.is_active = Boolean(is_active);
+
+    return NextResponse.json({ status: "success", service: srv });
+  } catch {
+    return NextResponse.json({ error: "فشل تحديث بيانات الخدمة" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "معرف الخدمة مطلوب" }, { status: 400 });
+    }
+
+    const index = db.services.findIndex((s) => s.id === id);
+    if (index === -1) {
+      return NextResponse.json({ error: "الخدمة غير موجودة" }, { status: 404 });
+    }
+
+    db.services.splice(index, 1);
+    return NextResponse.json({ status: "success", message: "تم حذف الخدمة بنجاح" });
+  } catch {
+    return NextResponse.json({ error: "فشل حذف الخدمة" }, { status: 500 });
+  }
+}

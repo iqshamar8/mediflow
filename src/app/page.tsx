@@ -19,6 +19,8 @@ import {
   ArrowUpRight,
   TrendingUp,
   BarChart3,
+  BellRing,
+  CheckCircle2,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -50,6 +52,7 @@ interface DashboardData {
 
 export default function DashboardPage() {
   const { t } = useI18n();
+  const [reminderSentId, setReminderSentId] = useState<string | null>(null);
   const [data, setData] = useState<DashboardData>({
     totalPatients: 3,
     todayAppointmentsCount: 2,
@@ -101,6 +104,22 @@ export default function DashboardPage() {
     }
     loadMetrics();
   }, []);
+
+  async function handleSendQuickReminder(aptId: string) {
+    try {
+      const res = await fetch("/api/appointments/reminder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appointment_id: aptId }),
+      });
+      if (res.ok) {
+        setReminderSentId(aptId);
+        setTimeout(() => setReminderSentId(null), 3500);
+      }
+    } catch {
+      // Error
+    }
+  }
 
   return (
     <AppLayout>
@@ -325,6 +344,7 @@ export default function DashboardPage() {
                     <th className="py-3 px-4 text-start font-medium">{t("dateTime")}</th>
                     <th className="py-3 px-4 text-start font-medium">{t("status")}</th>
                     <th className="py-3 px-4 text-start font-medium">مصدر الحجز</th>
+                    <th className="py-3 px-4 text-center font-medium">تذكير فوري</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -351,6 +371,31 @@ export default function DashboardPage() {
                         <Badge variant="outline" className="text-xs">
                           {apt.booking_source === "whatsapp" ? "واتساب (آلي)" : "لوحة التحكم"}
                         </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSendQuickReminder(apt.id)}
+                          className={`h-7 px-2.5 text-xs gap-1 font-medium ${
+                            reminderSentId === apt.id
+                              ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+                              : "border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+                          }`}
+                          title="إرسال تذكير واتساب للمريض فورياً"
+                        >
+                          {reminderSentId === apt.id ? (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>تم الإرسال</span>
+                            </>
+                          ) : (
+                            <>
+                              <BellRing className="w-3.5 h-3.5 text-amber-600" />
+                              <span>تذكير واتساب</span>
+                            </>
+                          )}
+                        </Button>
                       </td>
                     </tr>
                   ))}

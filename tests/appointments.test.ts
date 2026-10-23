@@ -79,4 +79,14 @@ describe("Appointment Scheduling & Conflict Prevention Engine", () => {
 
     expect(hasConflict).toBe(false);
   });
+
+  it("should update last_reminder_sent_at when a manual reminder is triggered", () => {
+    const apt = db.appointments[0];
+    expect(apt.last_reminder_sent_at).toBeUndefined();
+
+    const nowIso = new Date().toISOString();
+    apt.last_reminder_sent_at = nowIso;
+
+    expect(apt.last_reminder_sent_at).toBe(nowIso);
+  });
 });

@@ -60,3 +60,60 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create patient" }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, full_name, phone, email, date_of_birth, gender, whatsapp_consent, admin_notes } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "معرف المريض مطلوب" }, { status: 400 });
+    }
+
+    const patient = db.patients.find((p) => p.id === id);
+    if (!patient) {
+      return NextResponse.json({ error: "المريض غير موجود" }, { status: 404 });
+    }
+
+    // Check if phone changed and is taken by another patient
+    if (phone && phone !== patient.phone) {
+      const duplicate = db.patients.find((p) => p.id !== id && p.phone === phone);
+      if (duplicate) {
+        return NextResponse.json({ error: "رقم الهاتف مستخدم بالفعل لمريض آخر" }, { status: 409 });
+      }
+      patient.phone = phone;
+    }
+
+    if (full_name) patient.full_name = full_name;
+    if (email !== undefined) patient.email = email;
+    if (date_of_birth !== undefined) patient.date_of_birth = date_of_birth;
+    if (gender !== undefined) patient.gender = gender;
+    if (whatsapp_consent !== undefined) patient.whatsapp_consent = Boolean(whatsapp_consent);
+    if (admin_notes !== undefined) patient.admin_notes = admin_notes;
+
+    return NextResponse.json({ status: "success", patient });
+  } catch {
+    return NextResponse.json({ error: "فشل تحديث بيانات المريض" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "معرف المريض مطلوب" }, { status: 400 });
+    }
+
+    const index = db.patients.findIndex((p) => p.id === id);
+    if (index === -1) {
+      return NextResponse.json({ error: "المريض غير موجود" }, { status: 404 });
+    }
+
+    db.patients.splice(index, 1);
+    return NextResponse.json({ status: "success", message: "تم حذف سجل المريض بنجاح" });
+  } catch {
+    return NextResponse.json({ error: "فشل حذف المريض" }, { status: 500 });
+  }
+}

@@ -49,6 +49,52 @@ export function PatientDetailsDialog({
     admin_notes: "",
   });
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  async function handleSavePatient(e: React.FormEvent) {
+    e.preventDefault();
+    setIsSaving(true);
+    setErrorMsg("");
+    try {
+      const res = await fetch("/api/patients", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: patient.id,
+          ...editData,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setErrorMsg(data.error || "فشل حفظ التعديلات");
+        setIsSaving(false);
+        return;
+      }
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+      onUpdate();
+    } catch {
+      setErrorMsg("حدث خطأ أثناء الاتصال بالخادم");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDeletePatient() {
+    if (!confirm(`هل أنت متأكد من حذف سجل المريض (${patient.full_name}) نهائياً؟`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/patients?id=${patient.id}`, { method: "DELETE" });
+      if (res.ok) {
+        onUpdate();
+        onClose();
+      }
+    } catch {
+      // Error
+    }
+  }
 
   useEffect(() => {
     if (patient && isOpen) {
@@ -191,47 +237,101 @@ export function PatientDetailsDialog({
 
         {/* Tab Contents */}
         <div className="py-4 overflow-y-auto flex-1 space-y-4">
-          {/* TAB 1: INFO */}
+          {/* TAB 1: INFO & EDIT */}
           {activeTab === "info" && (
-            <div className="space-y-4">
+            <form onSubmit={handleSavePatient} className="space-y-4">
+              {saveSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>تم حفظ وتحديث بيانات المريض بنجاح!</span>
+                </div>
+              )}
+
+              {errorMsg && (
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold block mb-1">الاسم الكامل</label>
-                  <Input value={patient.full_name} disabled className="bg-secondary/20" />
+                  <label className="text-xs font-semibold block mb-1">الاسم الكامل *</label>
+                  <Input
+                    required
+                    value={editData.full_name}
+                    onChange={(e) => setEditData({ ...editData, full_name: e.target.value })}
+                  />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold block mb-1">رقم الهاتف</label>
-                  <Input value={patient.phone} disabled dir="ltr" className="bg-secondary/20" />
+                  <label className="text-xs font-semibold block mb-1">رقم الهاتف *</label>
+                  <Input
+                    required
+                    dir="ltr"
+                    value={editData.phone}
+                    onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-semibold block mb-1">تاريخ الميلاد</label>
-                  <Input value={patient.date_of_birth || "غير محدد"} disabled className="bg-secondary/20" />
+                  <Input
+                    type="date"
+                    value={editData.date_of_birth}
+                    onChange={(e) => setEditData({ ...editData, date_of_birth: e.target.value })}
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-semibold block mb-1">الجنس</label>
-                  <Input
-                    value={patient.gender === "female" ? "أنثى" : "ذكر"}
-                    disabled
-                    className="bg-secondary/20"
-                  />
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                    value={editData.gender}
+                    onChange={(e) => setEditData({ ...editData, gender: e.target.value as any })}
+                  >
+                    <option value="male">ذكر</option>
+                    <option value="female">أنثى</option>
+                  </select>
                 </div>
               </div>
 
               <div>
                 <label className="text-xs font-semibold block mb-1">الملاحظات الإدارية / الحساسية</label>
-                <div className="p-3 rounded-xl bg-secondary/30 border text-sm text-muted-foreground">
-                  {patient.admin_notes || "لا توجد ملاحظات مسجلة لهذا المريض."}
-                </div>
+                <textarea
+                  rows={3}
+                  className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={editData.admin_notes}
+                  onChange={(e) => setEditData({ ...editData, admin_notes: e.target.value })}
+                  placeholder="سجل أي حساسية دوائية، تاريخ مرضي، أو ملاحظات خاصة..."
+                />
               </div>
 
-              <div className="flex items-center gap-2 pt-2 border-t text-xs text-muted-foreground">
-                <Clock className="w-3.5 h-3.5 text-primary" />
-                <span>تاريخ فتح الملف في العيادة: </span>
-                <strong className="text-foreground">
-                  {new Date(patient.created_at).toLocaleDateString("ar-IQ", { dateStyle: "long" })}
-                </strong>
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="patient_consent_edit"
+                  checked={editData.whatsapp_consent}
+                  onChange={(e) => setEditData({ ...editData, whatsapp_consent: e.target.checked })}
+                  className="rounded border-input text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                />
+                <label htmlFor="patient_consent_edit" className="text-xs font-medium cursor-pointer">
+                  موافقة المريض على استلام رسائل الواتساب والتذكيرات التلقائية
+                </label>
               </div>
-            </div>
+
+              <div className="flex items-center justify-between pt-3 border-t">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleDeletePatient}
+                  className="text-destructive text-xs hover:bg-destructive/10 h-8"
+                >
+                  حذف سجل المريض
+                </Button>
+                <Button type="submit" disabled={isSaving} size="sm" className="gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{isSaving ? "جاري الحفظ..." : "حفظ التعديلات"}</span>
+                </Button>
+              </div>
+            </form>
           )}
 
           {/* TAB 2: APPOINTMENTS */}

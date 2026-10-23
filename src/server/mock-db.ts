@@ -38,6 +38,7 @@ export interface Appointment {
   status: "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
   booking_source: "dashboard" | "whatsapp" | "phone" | "walk_in";
   notes?: string;
+  last_reminder_sent_at?: string;
 }
 
 export interface Payment {

@@ -21,6 +21,7 @@ import {
   User,
   MoreVertical,
   Calendar,
+  BellRing,
 } from "lucide-react";
 
 export default function AppointmentsPage() {
@@ -30,6 +31,8 @@ export default function AppointmentsPage() {
   const [services, setServices] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [isSendingReminder, setIsSendingReminder] = useState<string | null>(null);
+  const [reminderNotification, setReminderNotification] = useState<string | null>(null);
 
   // New Appointment Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -189,6 +192,30 @@ export default function AppointmentsPage() {
     }
   }
 
+  // 5. Send Manual WhatsApp Reminder for an Appointment
+  async function handleSendManualReminder(aptId: string) {
+    setIsSendingReminder(aptId);
+    try {
+      const res = await fetch("/api/appointments/reminder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appointment_id: aptId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setReminderNotification(data.message || "تم إرسال تذكير الموعد عبر الواتساب بنجاح!");
+        setTimeout(() => setReminderNotification(null), 4500);
+        await loadData();
+      } else {
+        alert(data.error || "تعذر إرسال التذكير");
+      }
+    } catch {
+      alert("حدث خطأ في الاتصال بالخادم");
+    } finally {
+      setIsSendingReminder(null);
+    }
+  }
+
   // Filter by search name/phone/service and dropdown status
   const filteredAppointments = appointments.filter((apt) => {
     // Status filter
@@ -214,7 +241,7 @@ export default function AppointmentsPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{t("navAppointments")}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              إدارة وتأكيد وتعديل وإلغاء المواعيد، مع فحص التعارض الزمني
+              إدارة وتأكيد وتعديل وإلغاء المواعيد، مع فحص التعارض الزمني وإرسال تذكيرات الواتساب
             </p>
           </div>
           <Button onClick={() => setIsModalOpen(true)} className="gap-2">
@@ -222,6 +249,22 @@ export default function AppointmentsPage() {
             <span>{t("newAppointment")}</span>
           </Button>
         </div>
+
+        {/* Reminder Feedback Banner */}
+        {reminderNotification && (
+          <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 flex items-center justify-between text-sm font-semibold animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+              <span>{reminderNotification}</span>
+            </div>
+            <button
+              onClick={() => setReminderNotification(null)}
+              className="text-emerald-700 hover:text-emerald-900 dark:hover:text-emerald-100"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Filter and Search Bar Card */}
         <Card>
@@ -366,9 +409,24 @@ export default function AppointmentsPage() {
                           </Badge>
                         </td>
 
-                        {/* Actions (Manual Confirm / Cancel / Edit) */}
+                        {/* Actions (Manual Confirm / Cancel / Edit / WhatsApp Reminder) */}
                         <td className="py-3 px-4">
-                          <div className="flex items-center justify-center gap-1.5">
+                          <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                            {/* Manual WhatsApp Reminder Button */}
+                            {apt.status !== "cancelled" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleSendManualReminder(apt.id)}
+                                disabled={isSendingReminder === apt.id}
+                                className="h-7 px-2.5 text-xs border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 gap-1 font-medium"
+                                title="إرسال تذكير واتساب للمريض فورياً"
+                              >
+                                <BellRing className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                <span>{isSendingReminder === apt.id ? "جاري الإرسال..." : "تذكير واتساب"}</span>
+                              </Button>
+                            )}
+
                             {/* If pending, show Quick Confirm button */}
                             {apt.status === "pending" && (
                               <Button
