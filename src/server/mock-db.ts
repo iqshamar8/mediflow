@@ -1,11 +1,20 @@
 // MediFlow Development Database Adapter
 // Provides active state and database operations when Supabase is running in local development mode.
 
+export type ClinicSpecialtyType =
+  | "cardiology_general"
+  | "dentistry"
+  | "ophthalmology"
+  | "pediatrics"
+  | "obgyn"
+  | "dermatology";
+
 export interface Clinic {
   id: string;
   name: string;
   doctor_name: string;
   specialty: string;
+  specialty_type?: ClinicSpecialtyType;
   phone: string;
   email: string;
   address: string;
@@ -37,6 +46,7 @@ export interface Patient {
   whatsapp_consent: boolean;
   admin_notes?: string;
   created_at: string;
+  specialty_records?: Record<string, any>;
 }
 
 export interface Appointment {
@@ -82,6 +92,8 @@ export interface Visit {
   clinical_notes: string;
   prescription: string;
   follow_up_date?: string;
+  specialty_type?: ClinicSpecialtyType;
+  specialty_data?: Record<string, any>;
 }
 
 export interface WhatsAppMessage {
@@ -191,6 +203,7 @@ function initDb() {
         name: "عيادة د. أحمد الراوي التخصصية",
         doctor_name: "د. أحمد الراوي",
         specialty: "استشاري الأمراض الباطنية والقلب",
+        specialty_type: "cardiology_general",
         phone: "07700000001",
         email: "dr.ahmed@mediflow.iq",
         address: "بغداد - المنصور - شارع 14 رمضان (قرب ساحة الرواد)",
@@ -199,9 +212,10 @@ function initDb() {
       },
       {
         id: "clinic-2",
-        name: "مركز د. سارة العبيدي للسونار",
+        name: "مركز د. سارة العبيدي للسونار والنسائية",
         doctor_name: "د. سارة العبيدي",
-        specialty: "أخصائية السونار والأشعة التشخيصية",
+        specialty: "أخصائية النسائية والتوليد والسونار",
+        specialty_type: "obgyn",
         phone: "+9647722220000",
         email: "dr.sara@mediflow.iq",
         address: "بغداد - المنصور - شارع 14 رمضان",
@@ -213,11 +227,48 @@ function initDb() {
         name: "عيادة د. حيدر الأسدي لطب الأسنان",
         doctor_name: "د. حيدر الأسدي",
         specialty: "طب وجراحة الفم والأسنان والتقويم",
+        specialty_type: "dentistry",
         phone: "+9647733330000",
         email: "dr.haider@mediflow.iq",
         address: "بغداد - الكرادة خارج - ساحة التحريات",
         currency: "IQD",
         created_at: new Date(Date.now() - 86400000 * 30).toISOString(),
+      },
+      {
+        id: "clinic-4",
+        name: "مركز النور التخصصي للعيون والبصريات",
+        doctor_name: "د. عمر الفاروق",
+        specialty: "استشاري طب وجراحة العيون وانكسار البصر",
+        specialty_type: "ophthalmology",
+        phone: "+9647744440000",
+        email: "dr.omar@mediflow.iq",
+        address: "بغداد - الحارثية - شارع الكندي",
+        currency: "IQD",
+        created_at: new Date(Date.now() - 86400000 * 25).toISOString(),
+      },
+      {
+        id: "clinic-5",
+        name: "عيادة الأمل لطب الأطفال وحديثي الولادة",
+        doctor_name: "د. زينب الشمري",
+        specialty: "أخصائية طب الأطفال وحديثي الولادة والنمو",
+        specialty_type: "pediatrics",
+        phone: "+9647755550000",
+        email: "dr.zainab@mediflow.iq",
+        address: "بغداد - زيونة - شارع الربيعي",
+        currency: "IQD",
+        created_at: new Date(Date.now() - 86400000 * 20).toISOString(),
+      },
+      {
+        id: "clinic-6",
+        name: "مركز ديرما كير للجلدية والليزر والتجميل",
+        doctor_name: "د. ريم المهندس",
+        specialty: "أخصائية الأمراض الجلدية والعلاج بالليزر والتجميل",
+        specialty_type: "dermatology",
+        phone: "+9647766660000",
+        email: "dr.reem@mediflow.iq",
+        address: "بغداد - المنصور - حي دراغ",
+        currency: "IQD",
+        created_at: new Date(Date.now() - 86400000 * 15).toISOString(),
       },
     ],
     services: [
@@ -313,6 +364,72 @@ function initDb() {
         name_en: "Root Canal Treatment",
         duration_minutes: 60,
         price: 80000,
+        currency: "IQD",
+        is_active: true,
+      },
+
+      // Clinic 4 (Dr. Omar Al-Farooq - Ophthalmology)
+      {
+        id: "srv-301",
+        clinic_id: "clinic-4",
+        name_ar: "فحص قعر العين وانكسار البصر الشامل",
+        name_en: "Comprehensive Eye Exam & Refraction",
+        duration_minutes: 30,
+        price: 35000,
+        currency: "IQD",
+        is_active: true,
+      },
+      {
+        id: "srv-302",
+        clinic_id: "clinic-4",
+        name_ar: "قياس ضغط العين والمصباح الشقي",
+        name_en: "IOP Tonometry & Slit Lamp Examination",
+        duration_minutes: 20,
+        price: 25000,
+        currency: "IQD",
+        is_active: true,
+      },
+
+      // Clinic 5 (Dr. Zainab Al-Shammari - Pediatrics)
+      {
+        id: "srv-401",
+        clinic_id: "clinic-5",
+        name_ar: "كشف وفحص نمو وتطور الطفل",
+        name_en: "Pediatric Growth & Developmental Check",
+        duration_minutes: 30,
+        price: 25000,
+        currency: "IQD",
+        is_active: true,
+      },
+      {
+        id: "srv-402",
+        clinic_id: "clinic-5",
+        name_ar: "جلسة التلقيحات الدورية الوطنية",
+        name_en: "National Vaccination Session",
+        duration_minutes: 20,
+        price: 15000,
+        currency: "IQD",
+        is_active: true,
+      },
+
+      // Clinic 6 (Dr. Reem Al-Muhandis - Dermatology & Laser)
+      {
+        id: "srv-501",
+        clinic_id: "clinic-6",
+        name_ar: "جلسة إزالة الشعر بالليزر (منطقة كاملة)",
+        name_en: "Laser Hair Removal Session",
+        duration_minutes: 45,
+        price: 65000,
+        currency: "IQD",
+        is_active: true,
+      },
+      {
+        id: "srv-502",
+        clinic_id: "clinic-6",
+        name_ar: "جلسة حقن بوتوكس تجميلي للتجاعيد",
+        name_en: "Botox Cosmetic Wrinkle Injection",
+        duration_minutes: 30,
+        price: 120000,
         currency: "IQD",
         is_active: true,
       },

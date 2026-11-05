@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, Visit, getRequestClinicId } from "@/server/mock-db";
+import { db, Visit, ClinicSpecialtyType, getRequestClinicId } from "@/server/mock-db";
 
 export async function GET(request: Request) {
   const clinicId = getRequestClinicId(request);
@@ -26,7 +26,17 @@ export async function POST(request: Request) {
   try {
     const clinicId = getRequestClinicId(request);
     const body = await request.json();
-    const { patient_id, doctor_name, service_name, diagnosis, clinical_notes, prescription, follow_up_date } = body;
+    const { 
+      patient_id, 
+      doctor_name, 
+      service_name, 
+      diagnosis, 
+      clinical_notes, 
+      prescription, 
+      follow_up_date,
+      specialty_type,
+      specialty_data
+    } = body;
 
     if (!patient_id || !diagnosis) {
       return NextResponse.json({ error: "المريض والتشخيص الطبي مطلوبان" }, { status: 400 });
@@ -40,6 +50,8 @@ export async function POST(request: Request) {
     }
 
     const currentClinic = db.clinics?.find((c) => c.id === clinicId);
+    const resolvedSpecialty: ClinicSpecialtyType = 
+      (specialty_type as ClinicSpecialtyType) || currentClinic?.specialty_type || "cardiology_general";
 
     const newVisit: Visit = {
       id: `vis-${Date.now()}`,
@@ -53,12 +65,26 @@ export async function POST(request: Request) {
       clinical_notes: clinical_notes || "",
       prescription: prescription || "",
       follow_up_date: follow_up_date || undefined,
+      specialty_type: resolvedSpecialty,
+      specialty_data: specialty_data || {},
     };
 
     if (!db.visits) {
       db.visits = [];
     }
     db.visits.unshift(newVisit);
+
+    // Merge persistent specialty clinical state into patient record
+    if (specialty_data && typeof specialty_data === "object") {
+      if (!patient.specialty_records) {
+        patient.specialty_records = {};
+      }
+      patient.specialty_records[resolvedSpecialty] = {
+        ...(patient.specialty_records[resolvedSpecialty] || {}),
+        ...specialty_data,
+        last_updated: new Date().toISOString(),
+      };
+    }
 
     return NextResponse.json(newVisit, { status: 201 });
   } catch {

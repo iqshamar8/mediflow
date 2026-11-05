@@ -1,12 +1,14 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { ClinicSpecialtyType } from "@/server/mock-db";
 
 export interface Clinic {
   id: string;
   name: string;
   doctor_name: string;
   specialty: string;
+  specialty_type?: ClinicSpecialtyType;
   phone: string;
   email: string;
   address: string;
@@ -23,6 +25,7 @@ interface ClinicContextType {
     name: string;
     doctor_name: string;
     specialty: string;
+    specialty_type?: ClinicSpecialtyType;
     phone: string;
     email?: string;
     address?: string;

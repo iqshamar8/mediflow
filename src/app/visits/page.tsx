@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n/context";
 import { useClinic } from "@/lib/clinic/context";
 import { SearchablePatientSelect } from "@/components/patients/searchable-patient-select";
+import { SpecialtyClinicalSuite } from "@/components/clinical/specialty-suite";
+import { ClinicSpecialtyType } from "@/server/mock-db";
 import {
   FileText,
   ShieldAlert,
@@ -21,6 +23,12 @@ import {
   CheckCircle2,
   Stethoscope,
   Pill,
+  Sparkles,
+  Smile,
+  Eye,
+  Heart,
+  Baby,
+  Activity,
 } from "lucide-react";
 
 export default function VisitsPage() {
@@ -39,14 +47,20 @@ export default function VisitsPage() {
     clinical_notes: "",
     prescription: "",
     follow_up_date: "",
+    specialty_type: (currentClinic?.specialty_type || "cardiology_general") as ClinicSpecialtyType,
+    specialty_data: {} as Record<string, any>,
   });
 
   useEffect(() => {
     loadData();
     if (currentClinic?.doctor_name) {
-      setFormData((prev) => ({ ...prev, doctor_name: currentClinic.doctor_name }));
+      setFormData((prev) => ({ 
+        ...prev, 
+        doctor_name: currentClinic.doctor_name,
+        specialty_type: (currentClinic.specialty_type || "cardiology_general") as ClinicSpecialtyType
+      }));
     }
-  }, [currentClinic?.id, currentClinic?.doctor_name]);
+  }, [currentClinic?.id, currentClinic?.doctor_name, currentClinic?.specialty_type]);
 
   async function loadData() {
     try {
@@ -93,6 +107,7 @@ export default function VisitsPage() {
           clinical_notes: "",
           prescription: "",
           follow_up_date: "",
+          specialty_data: {},
         }));
       }
     } catch {
@@ -197,6 +212,56 @@ export default function VisitsPage() {
                     <p className="text-sm font-semibold text-foreground">{visit.diagnosis}</p>
                   </div>
 
+                  {/* Specialty Clinical Data Snippet */}
+                  {visit.specialty_data && Object.keys(visit.specialty_data).length > 0 && (
+                    <div className="p-3 bg-secondary/40 rounded-xl border text-xs space-y-1.5">
+                      <div className="flex items-center gap-1.5 font-bold text-primary">
+                        {visit.specialty_type === "dentistry" && <Smile className="w-3.5 h-3.5" />}
+                        {visit.specialty_type === "ophthalmology" && <Eye className="w-3.5 h-3.5" />}
+                        {visit.specialty_type === "obgyn" && <Activity className="w-3.5 h-3.5" />}
+                        {visit.specialty_type === "pediatrics" && <Baby className="w-3.5 h-3.5" />}
+                        {visit.specialty_type === "dermatology" && <Sparkles className="w-3.5 h-3.5" />}
+                        {(!visit.specialty_type || visit.specialty_type === "cardiology_general") && <Heart className="w-3.5 h-3.5" />}
+                        <span>بيانات الفحص التخصصي:</span>
+                      </div>
+                      {visit.specialty_data.systolic && (
+                        <div className="flex flex-wrap gap-2 text-muted-foreground">
+                          <span className="font-semibold text-foreground">ضغط الدم:</span> {visit.specialty_data.systolic}/{visit.specialty_data.diastolic} mmHg
+                          {visit.specialty_data.pulse && <>• <span className="font-semibold text-foreground">النبض:</span> {visit.specialty_data.pulse} bpm</>}
+                          {visit.specialty_data.spo2 && <>• <span className="font-semibold text-foreground">SpO2:</span> {visit.specialty_data.spo2}%</>}
+                          {visit.specialty_data.blood_sugar && <>• <span className="font-semibold text-foreground">السكر:</span> {visit.specialty_data.blood_sugar} mg/dL</>}
+                        </div>
+                      )}
+                      {visit.specialty_data.teeth && (
+                        <div className="text-muted-foreground">
+                          تم توثيق <strong className="text-foreground">{Object.keys(visit.specialty_data.teeth).length}</strong> سن على مخطط الأسنان FDI
+                        </div>
+                      )}
+                      {(visit.specialty_data.od_sph || visit.specialty_data.os_sph) && (
+                        <div className="flex flex-wrap gap-2 text-muted-foreground font-mono">
+                          <span>OD: {visit.specialty_data.od_sph || "0"} / {visit.specialty_data.od_cyl || "0"} x {visit.specialty_data.od_axis || "0"}°</span>
+                          <span>•</span>
+                          <span>OS: {visit.specialty_data.os_sph || "0"} / {visit.specialty_data.os_cyl || "0"} x {visit.specialty_data.os_axis || "0"}°</span>
+                        </div>
+                      )}
+                      {visit.specialty_data.lmp_date && (
+                        <div className="text-muted-foreground">
+                          LMP: {visit.specialty_data.lmp_date} {visit.specialty_data.sonar_efw && `• وزن الجنين: ${visit.specialty_data.sonar_efw}`}
+                        </div>
+                      )}
+                      {visit.specialty_data.laser_device && (
+                        <div className="text-muted-foreground">
+                          جهاز: {visit.specialty_data.laser_device} • طاقة: {visit.specialty_data.laser_fluence || "-"} J/cm²
+                        </div>
+                      )}
+                      {visit.specialty_data.child_weight_kg && (
+                        <div className="text-muted-foreground">
+                          وزن الطفل: {visit.specialty_data.child_weight_kg} kg • الطول: {visit.specialty_data.child_height_cm || "-"} cm
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {visit.clinical_notes && (
                     <div>
                       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
@@ -236,7 +301,7 @@ export default function VisitsPage() {
         {/* Add Visit Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-card w-full max-w-lg rounded-2xl border shadow-2xl p-6 relative">
+            <div className="bg-card w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border shadow-2xl p-6 relative">
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="absolute top-5 end-5 text-muted-foreground hover:text-foreground p-1 rounded-lg"
@@ -244,7 +309,7 @@ export default function VisitsPage() {
                 <X className="w-5 h-5" />
               </button>
 
-              <h2 className="text-xl font-bold mb-4">تسجيل تقرير سريري / زيارة طبية</h2>
+              <h2 className="text-xl font-bold mb-4">تسجيل تقرير سريري / زيارة طبية تخصصية</h2>
 
               <form onSubmit={handleAddVisit} className="space-y-4">
                 <div>
@@ -289,12 +354,28 @@ export default function VisitsPage() {
                   />
                 </div>
 
+                {/* Integrated Specialty Clinical Suite */}
+                <div className="pt-2 border-t">
+                  <label className="text-xs font-semibold block mb-2">أدوات الفحص والتوثيق التخصصي السريري</label>
+                  <SpecialtyClinicalSuite
+                    initialSpecialty={formData.specialty_type}
+                    value={formData.specialty_data}
+                    onChange={(newData, newSpec) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        specialty_type: newSpec,
+                        specialty_data: newData,
+                      }));
+                    }}
+                  />
+                </div>
+
                 <div>
-                  <label className="text-xs font-semibold block mb-1">الملاحظات الطبية والفحص</label>
+                  <label className="text-xs font-semibold block mb-1">الملاحظات الطبية والفحص العام</label>
                   <textarea
-                    rows={3}
+                    rows={2}
                     className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="تفاصيل الفحص السريري، العلامات الحيوية، والنتائج..."
+                    placeholder="تفاصيل الفحص السريري، الملاحظات الإضافية..."
                     value={formData.clinical_notes}
                     onChange={(e) => setFormData({ ...formData, clinical_notes: e.target.value })}
                   />
@@ -318,7 +399,7 @@ export default function VisitsPage() {
                   />
                 </div>
 
-                <div className="flex justify-end gap-2 pt-4 border-t">
+                <div className="flex justify-end gap-2 pt-4 border-t sticky bottom-0 bg-card py-2">
                   <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                     إلغاء
                   </Button>

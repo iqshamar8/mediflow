@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, doctor_name, specialty, phone, email, address, currency } = body;
+    const { name, doctor_name, specialty, specialty_type, phone, email, address, currency } = body;
 
     if (!doctor_name?.trim() || !name?.trim()) {
       return NextResponse.json(
@@ -36,6 +36,7 @@ export async function POST(request: Request) {
       name: name.trim(),
       doctor_name: doctor_name.trim(),
       specialty: specialty?.trim() || "طب عام واستشارات",
+      specialty_type: specialty_type || "cardiology_general",
       phone: phone?.trim() || "+9647700000000",
       email: email?.trim() || "",
       address: address?.trim() || "العراق - بغداد",

@@ -77,7 +77,7 @@ export async function PATCH(request: Request) {
   try {
     const clinicId = getRequestClinicId(request);
     const body = await request.json();
-    const { id, full_name, phone, email, date_of_birth, gender, whatsapp_consent, admin_notes } = body;
+    const { id, full_name, phone, email, date_of_birth, gender, whatsapp_consent, admin_notes, specialty_records } = body;
 
     if (!id) {
       return NextResponse.json({ error: "معرف المريض مطلوب" }, { status: 400 });
@@ -110,6 +110,12 @@ export async function PATCH(request: Request) {
     if (gender !== undefined) patient.gender = gender;
     if (whatsapp_consent !== undefined) patient.whatsapp_consent = Boolean(whatsapp_consent);
     if (admin_notes !== undefined) patient.admin_notes = admin_notes;
+    if (specialty_records !== undefined) {
+      patient.specialty_records = {
+        ...(patient.specialty_records || {}),
+        ...specialty_records,
+      };
+    }
 
     return NextResponse.json({ status: "success", patient });
   } catch {

@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { PrescriptionDialog } from "@/components/prescriptions/prescription-dialog";
+import { SpecialtyClinicalSuite } from "@/components/clinical/specialty-suite";
+import { ClinicSpecialtyType } from "@/server/mock-db";
 import {
   X,
   User,
@@ -27,6 +29,11 @@ import {
   Printer,
   Download,
   Plus,
+  Activity,
+  Smile,
+  Sparkles,
+  Baby,
+  Heart,
 } from "lucide-react";
 
 interface PatientDetailsDialogProps {
@@ -44,7 +51,7 @@ export function PatientDetailsDialog({
 }: PatientDetailsDialogProps) {
   const { currentClinic } = useClinic();
   const [activeTab, setActiveTab] = useState<
-    "info" | "appointments" | "payments" | "visits" | "attachments" | "prescriptions"
+    "info" | "specialty" | "prescriptions" | "attachments" | "visits" | "appointments" | "payments"
   >("info");
 
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -53,6 +60,11 @@ export function PatientDetailsDialog({
   const [attachments, setAttachments] = useState<any[]>([]);
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  // Specialty Clinical Data State
+  const [patientSpecialtyRecords, setPatientSpecialtyRecords] = useState<Record<string, any>>({});
+  const [isSavingSpecialty, setIsSavingSpecialty] = useState(false);
+  const [specialtySuccess, setSpecialtySuccess] = useState(false);
 
   // New Rx Modal
   const [isRxModalOpen, setIsRxModalOpen] = useState(false);
@@ -131,6 +143,33 @@ export function PatientDetailsDialog({
     }
   }
 
+  async function handleSaveSpecialty() {
+    setIsSavingSpecialty(true);
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (currentClinic?.id) {
+        headers["x-clinic-id"] = currentClinic.id;
+      }
+      const res = await fetch(`/api/patients?clinic_id=${currentClinic?.id || ""}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({
+          id: patient.id,
+          specialty_records: patientSpecialtyRecords,
+        }),
+      });
+      if (res.ok) {
+        setSpecialtySuccess(true);
+        setTimeout(() => setSpecialtySuccess(false), 3000);
+        onUpdate();
+      }
+    } catch {
+      // Error
+    } finally {
+      setIsSavingSpecialty(false);
+    }
+  }
+
   useEffect(() => {
     if (patient && isOpen) {
       setEditData({
@@ -142,6 +181,7 @@ export function PatientDetailsDialog({
         whatsapp_consent: patient.whatsapp_consent !== false,
         admin_notes: patient.admin_notes || "",
       });
+      setPatientSpecialtyRecords(patient.specialty_records || {});
       loadPatientHistory(patient.id);
     }
   }, [patient, isOpen, currentClinic?.id]);
@@ -306,6 +346,18 @@ export function PatientDetailsDialog({
             </button>
 
             <button
+              onClick={() => setActiveTab("specialty")}
+              className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
+                activeTab === "specialty"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5" />
+              <span>الملف الطبي التخصصي</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab("prescriptions")}
               className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
                 activeTab === "prescriptions"
@@ -457,6 +509,50 @@ export function PatientDetailsDialog({
                   </Button>
                 </div>
               </form>
+            )}
+
+            {/* TAB: SPECIALTY CLINICAL SUITE */}
+            {activeTab === "specialty" && (
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-secondary/30 rounded-xl border">
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">
+                      الملف الطبي التخصصي التراكمي للمريض
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      مخطط الأسنان، فحص البصر، قياسات سونار الحمل، متابعة اللقاحات، وجلسات التجميل
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={isSavingSpecialty}
+                    onClick={handleSaveSpecialty}
+                    className="gap-1.5 text-xs font-bold"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>{isSavingSpecialty ? "جاري الحفظ..." : "حفظ التحديثات التخصصية"}</span>
+                  </Button>
+                </div>
+
+                {specialtySuccess && (
+                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>تم حفظ البيانات السريرية في الملف التخصصي للمريض بنجاح</span>
+                  </div>
+                )}
+
+                <SpecialtyClinicalSuite
+                  initialSpecialty={(currentClinic?.specialty_type || "cardiology_general") as ClinicSpecialtyType}
+                  value={patientSpecialtyRecords}
+                  onChange={(newData, spec) => {
+                    setPatientSpecialtyRecords((prev) => ({
+                      ...prev,
+                      [spec]: newData,
+                      ...newData,
+                    }));
+                  }}
+                />
+              </div>
             )}
 
             {/* TAB: PRESCRIPTIONS (الراشتات الطبية) */}
