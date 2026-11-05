@@ -103,7 +103,7 @@ export function ClinicSwitcher() {
               className="fixed inset-0 z-40"
               onClick={() => setIsOpen(false)}
             />
-            <div className="absolute end-0 mt-2 w-80 bg-card rounded-2xl border border-border shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute start-0 sm:start-auto sm:end-0 mt-2 w-72 sm:w-80 max-w-[90vw] bg-card rounded-2xl border border-border shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
               {/* Header */}
               <div className="p-3.5 bg-muted/40 border-b border-border">
                 <div className="flex items-center justify-between">

@@ -8,18 +8,33 @@ import { useRole, UserRole } from "@/lib/auth/role-context";
 import { ClinicSwitcher } from "@/components/clinic/clinic-switcher";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Globe, Bell, Sun, Moon, ShieldCheck, UserCheck } from "lucide-react";
+import { Globe, Bell, Sun, Moon, ShieldCheck, UserCheck, Menu } from "lucide-react";
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const { language, setLanguage, t } = useI18n();
   const { isDark, toggleTheme } = useTheme();
   const { currentClinic } = useClinic();
   const { role, setRole, roleNameAr } = useRole();
 
   return (
-    <header className="h-16 border-b bg-card/60 backdrop-blur px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
+    <header className="h-16 border-b bg-card/60 backdrop-blur px-3 sm:px-6 flex items-center justify-between sticky top-0 z-30">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        {/* Mobile Menu Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="md:hidden p-1.5 h-9 w-9 text-muted-foreground hover:text-foreground shrink-0"
+          onClick={onMenuClick}
+          aria-label="القائمة الرئيسية"
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
+
+        <div className="hidden sm:flex items-center gap-2 shrink-0">
           <Badge variant="outline" className="text-primary font-bold tracking-wide">
             MediFlow
           </Badge>
@@ -30,7 +45,9 @@ export function Header() {
         </div>
 
         {/* Doctor & Clinic Workspace Switcher */}
-        <ClinicSwitcher />
+        <div className="min-w-0">
+          <ClinicSwitcher />
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

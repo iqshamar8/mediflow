@@ -19,9 +19,15 @@ import {
   Tv,
   CalendarClock,
   Receipt,
+  X,
 } from "lucide-react";
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useI18n();
   const { currentClinic } = useClinic();
@@ -40,21 +46,34 @@ export function Sidebar() {
     { href: "/settings", label: t("navSettings"), icon: Settings },
   ];
 
-  return (
-    <aside className="w-64 border-e bg-card flex flex-col shrink-0 min-h-screen">
+  const sidebarContent = (
+    <>
       {/* Brand logo */}
-      <div className="h-16 px-6 flex items-center gap-3 border-b">
-        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-sm">
-          <HeartPulse className="w-6 h-6 stroke-[2.2]" />
+      <div className="h-16 px-5 flex items-center justify-between border-b">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-sm shrink-0">
+            <HeartPulse className="w-6 h-6 stroke-[2.2]" />
+          </div>
+          <div className="text-start truncate">
+            <span className="font-bold text-base tracking-tight text-foreground block">
+              {t("appName")}
+            </span>
+            <span className="text-[10px] text-muted-foreground block truncate max-w-[130px]">
+              {currentClinic ? currentClinic.name : "Al-Noor Clinic"}
+            </span>
+          </div>
         </div>
-        <div className="text-start truncate">
-          <span className="font-bold text-base tracking-tight text-foreground block">
-            {t("appName")}
-          </span>
-          <span className="text-[10px] text-muted-foreground block truncate">
-            {currentClinic ? currentClinic.name : "Al-Noor Clinic"}
-          </span>
-        </div>
+
+        {/* Mobile close button */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="md:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+            aria-label="إغلاق القائمة"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       {/* Navigation links */}
@@ -66,6 +85,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className={cn(
                 "flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all",
                 isActive
@@ -91,6 +111,28 @@ export function Sidebar() {
         <p className="truncate">{currentClinic?.address || "المنصور، بغداد"}</p>
         <p className="font-mono text-[11px]" dir="ltr">{currentClinic?.phone || "+964 770 000 0001"}</p>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop Persistent Sidebar */}
+      <aside className="hidden md:flex flex-col w-64 border-e bg-card shrink-0 min-h-screen sticky top-0 h-screen">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile Drawer (Slide-over) */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={onClose}
+          />
+          <aside className="relative z-50 w-72 max-w-[85vw] bg-card border-e shadow-2xl flex flex-col h-full animate-in slide-in-from-start duration-200">
+            {sidebarContent}
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

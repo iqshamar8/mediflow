@@ -1,9 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { I18nProvider } from "@/lib/i18n/context";
 import { ThemeProvider } from "@/lib/theme/context";
 import { ClinicProvider } from "@/lib/clinic/context";
 import { RoleProvider } from "@/lib/auth/role-context";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
 
 export const metadata: Metadata = {
   title: "MediFlow CRM — إدارة العيادات والمواعيد",
