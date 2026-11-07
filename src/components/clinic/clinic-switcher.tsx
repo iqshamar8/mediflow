@@ -30,6 +30,7 @@ export function ClinicSwitcher() {
     doctor_name: "",
     name: "",
     specialty: "",
+    specialty_type: "dentistry" as any,
     phone: "",
     address: "",
   });
@@ -49,6 +50,7 @@ export function ClinicSwitcher() {
         doctor_name: formData.doctor_name,
         name: formData.name,
         specialty: formData.specialty || "طب عام واستشارات",
+        specialty_type: formData.specialty_type,
         phone: formData.phone || "+9647700000000",
         address: formData.address || "العراق - بغداد",
       });
@@ -59,6 +61,7 @@ export function ClinicSwitcher() {
         doctor_name: "",
         name: "",
         specialty: "",
+        specialty_type: "dentistry",
         phone: "",
         address: "",
       });
@@ -244,16 +247,37 @@ export function ClinicSwitcher() {
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <Stethoscope className="w-3.5 h-3.5 text-primary" />
-                  التخصص الطبي
-                </label>
-                <Input
-                  placeholder="مثال: استشارية طب الأطفال والتغذية العلاجية"
-                  value={formData.specialty}
-                  onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Stethoscope className="w-3.5 h-3.5 text-primary" />
+                    المسار السريري التخصصي <span className="text-destructive">*</span>
+                  </label>
+                  <select
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                    value={formData.specialty_type}
+                    onChange={(e) => setFormData({ ...formData, specialty_type: e.target.value })}
+                  >
+                    <option value="dentistry">🦷 طب وجراحة الأسنان (Tooth Chart)</option>
+                    <option value="obgyn">🌸 النسائية والتوليد والسونار (Pregnancy & Sonar)</option>
+                    <option value="ophthalmology">👁️ العيون والبصريات (Eye Refraction)</option>
+                    <option value="pediatrics">👶 طب الأطفال واللقاحات (Growth & Vaccines)</option>
+                    <option value="dermatology">✨ الجلدية والليزر والتجميل (Laser & Botox)</option>
+                    <option value="cardiology_general">🫀 الباطنية والقلب والطب العام (Vitals)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Stethoscope className="w-3.5 h-3.5 text-primary" />
+                    المسمى الطبي واللقب العلمي
+                  </label>
+                  <Input
+                    placeholder="مثال: أخصائي جراحة وزراعة الأسنان"
+                    value={formData.specialty}
+                    onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
