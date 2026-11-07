@@ -25,6 +25,7 @@ export function ClinicSwitcher() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   const [formData, setFormData] = useState({
     doctor_name: "",
@@ -38,33 +39,48 @@ export function ClinicSwitcher() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
+    setSuccessMsg("");
 
-    if (!formData.doctor_name.trim() || !formData.name.trim()) {
-      setErrorMsg("يرجى إدخال اسم الطبيب واسم العيادة");
+    const trimmedDoctor = formData.doctor_name.trim();
+    let trimmedName = formData.name.trim();
+
+    if (!trimmedDoctor) {
+      setErrorMsg("يرجى كتابة اسم الطبيب أولاً (في أعلى النموذج)");
       return;
+    }
+
+    // Auto-generate clinic name if left empty
+    if (!trimmedName) {
+      trimmedName = `عيادة ${trimmedDoctor}`;
+      setFormData((prev) => ({ ...prev, name: trimmedName }));
     }
 
     try {
       setIsSubmitting(true);
-      await registerClinic({
-        doctor_name: formData.doctor_name,
-        name: formData.name,
+      const newClinic = await registerClinic({
+        doctor_name: trimmedDoctor,
+        name: trimmedName,
         specialty: formData.specialty || "طب عام واستشارات",
         specialty_type: formData.specialty_type,
         phone: formData.phone || "+9647700000000",
         address: formData.address || "العراق - بغداد",
       });
 
-      setIsModalOpen(false);
-      setIsOpen(false);
-      setFormData({
-        doctor_name: "",
-        name: "",
-        specialty: "",
-        specialty_type: "dentistry",
-        phone: "",
-        address: "",
-      });
+      setSuccessMsg(`تم إنشاء عيادة "${newClinic.name}" بنجاح! جاري تحويلك...`);
+
+      setTimeout(() => {
+        setIsModalOpen(false);
+        setIsOpen(false);
+        setSuccessMsg("");
+        setFormData({
+          doctor_name: "",
+          name: "",
+          specialty: "",
+          specialty_type: "dentistry",
+          phone: "",
+          address: "",
+        });
+      }, 1000);
     } catch (err: any) {
       setErrorMsg(err.message || "حدث خطأ أثناء تسجيل العيادة");
     } finally {
@@ -187,146 +203,169 @@ export function ClinicSwitcher() {
 
       {/* Register New Doctor/Clinic Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 border-b border-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-md">
+                <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-md shrink-0">
                   <Building2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-foreground flex items-center gap-1.5">
+                  <h3 className="font-bold text-sm sm:text-base text-foreground flex items-center gap-1.5">
                     تسجيل عيادة ونظام مستقل لطبيب جديد
                     <Sparkles className="w-4 h-4 text-amber-500" />
                   </h3>
-                  <p className="text-xs text-muted-foreground">
-                    سيتم إنشاء مساحة عمل وقاعدة بيانات مستقلة تماماً لا يمكن لأحد غيره الاطلاع عليها
+                  <p className="text-[11px] sm:text-xs text-muted-foreground">
+                    سيتم إنشاء مساحة عمل وقاعدة بيانات مستقلة تماماً خاصة بهذا الطبيب
                   </p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Body */}
-            <form onSubmit={handleRegister} className="p-5 space-y-4">
-              {errorMsg && (
-                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs">
-                  {errorMsg}
-                </div>
-              )}
+            {/* Modal Form */}
+            <form noValidate onSubmit={handleRegister} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
+                {errorMsg && (
+                  <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-destructive animate-ping shrink-0" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5 text-primary" />
-                  اسم الطبيب الكامل <span className="text-destructive">*</span>
-                </label>
-                <Input
-                  required
-                  placeholder="مثال: د. ليلى السعدي"
-                  value={formData.doctor_name}
-                  onChange={(e) => setFormData({ ...formData, doctor_name: e.target.value })}
-                />
-              </div>
+                {successMsg && (
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{successMsg}</span>
+                  </div>
+                )}
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-primary" />
-                  اسم العيادة أو المركز الطبي <span className="text-destructive">*</span>
-                </label>
-                <Input
-                  required
-                  placeholder="مثال: عيادة السعدي لطب الأطفال وحديثي الولادة"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Stethoscope className="w-3.5 h-3.5 text-primary" />
-                    المسار السريري التخصصي <span className="text-destructive">*</span>
+                    <UserCheck className="w-3.5 h-3.5 text-primary" />
+                    اسم الطبيب الكامل <span className="text-destructive">*</span>
                   </label>
-                  <select
-                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                    value={formData.specialty_type}
-                    onChange={(e) => setFormData({ ...formData, specialty_type: e.target.value })}
+                  <Input
+                    placeholder="مثال: د. أحمد الجراح"
+                    value={formData.doctor_name}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData((prev) => ({
+                        ...prev,
+                        doctor_name: val,
+                        name: prev.name || (val.trim() ? `عيادة ${val}` : ""),
+                      }));
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-primary" />
+                    اسم العيادة أو المركز الطبي <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    placeholder="مثال: مجمع الصدى الطبي / عيادة الفلوجة"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Stethoscope className="w-3.5 h-3.5 text-primary" />
+                      المسار السريري التخصصي <span className="text-destructive">*</span>
+                    </label>
+                    <select
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                      value={formData.specialty_type}
+                      onChange={(e) => setFormData({ ...formData, specialty_type: e.target.value })}
+                    >
+                      <option value="cardiology_general">🩺 الجراحة العامة والباطنية (Vitals & Surgery)</option>
+                      <option value="dentistry">🦷 طب وجراحة الأسنان (Tooth Chart)</option>
+                      <option value="obgyn">🌸 النسائية والتوليد والسونار (Pregnancy & Sonar)</option>
+                      <option value="ophthalmology">👁️ العيون والبصريات (Eye Refraction)</option>
+                      <option value="pediatrics">👶 طب الأطفال واللقاحات (Growth & Vaccines)</option>
+                      <option value="dermatology">✨ الجلدية والليزر والتجميل (Laser & Botox)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Stethoscope className="w-3.5 h-3.5 text-primary" />
+                      المسمى واللقب الطبي
+                    </label>
+                    <Input
+                      placeholder="مثال: الجراحة العامة والناظورية"
+                      value={formData.specialty}
+                      onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-primary" />
+                      رقم هاتف العيادة / الحجوزات
+                    </label>
+                    <Input
+                      placeholder="07724315734"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-primary" />
+                      عنوان العيادة
+                    </label>
+                    <Input
+                      placeholder="الفلوجة - مجمع الصدى الطبي"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Security info box */}
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs flex items-start gap-2">
+                  <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
+                  <p className="leading-relaxed">
+                    <strong>ضمان الخصوصية والعزل التام:</strong> بمجرد الحفظ، سيمتلك هذا الطبيب نظاماً منفصلاً تماماً للمرضى والمواعيد والتقارير والواتساب لا يشترك مع أي عيادة أخرى.
+                  </p>
+                </div>
+              </div>
+
+              {/* Modal Pinned Footer */}
+              <div className="p-4 border-t border-border bg-card/95 backdrop-blur flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+                <div className="text-xs text-muted-foreground w-full sm:w-auto text-start">
+                  {errorMsg && <span className="text-destructive font-bold">{errorMsg}</span>}
+                  {successMsg && <span className="text-emerald-600 font-bold">{successMsg}</span>}
+                </div>
+
+                <div className="flex items-center justify-end gap-2 w-full sm:w-auto">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsModalOpen(false)}
+                    disabled={isSubmitting}
                   >
-                    <option value="dentistry">🦷 طب وجراحة الأسنان (Tooth Chart)</option>
-                    <option value="obgyn">🌸 النسائية والتوليد والسونار (Pregnancy & Sonar)</option>
-                    <option value="ophthalmology">👁️ العيون والبصريات (Eye Refraction)</option>
-                    <option value="pediatrics">👶 طب الأطفال واللقاحات (Growth & Vaccines)</option>
-                    <option value="dermatology">✨ الجلدية والليزر والتجميل (Laser & Botox)</option>
-                    <option value="cardiology_general">🫀 الباطنية والقلب والطب العام (Vitals)</option>
-                  </select>
+                    إلغاء
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting} className="gap-2 font-bold shadow-md">
+                    {isSubmitting ? "جاري إنشاء النظام..." : "إنشاء وبدء استخدام النظام الآن"}
+                  </Button>
                 </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Stethoscope className="w-3.5 h-3.5 text-primary" />
-                    المسمى الطبي واللقب العلمي
-                  </label>
-                  <Input
-                    placeholder="مثال: أخصائي جراحة وزراعة الأسنان"
-                    value={formData.specialty}
-                    onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-primary" />
-                    رقم هاتف العيادة / الحجوزات
-                  </label>
-                  <Input
-                    placeholder="07701234567"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-primary" />
-                    عنوان العيادة
-                  </label>
-                  <Input
-                    placeholder="بغداد - الكرخ - حي الجامعة"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              {/* Security info box */}
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs flex items-start gap-2">
-                <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
-                <p className="leading-relaxed">
-                  <strong>ضمان الخصوصية والعزل التام:</strong> بمجرد الحفظ، سيمتلك هذا الطبيب نظاماً منفصلاً تماماً للمرضى والمواعيد والتقارير والواتساب لا يشترك مع أي عيادة أخرى.
-                </p>
-              </div>
-
-              {/* Modal Footer */}
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsModalOpen(false)}
-                  disabled={isSubmitting}
-                >
-                  إلغاء
-                </Button>
-                <Button type="submit" disabled={isSubmitting} className="gap-2">
-                  {isSubmitting ? "جاري إنشاء النظام..." : "إنشاء وبدء استخدام النظام الآن"}
-                </Button>
               </div>
             </form>
           </div>
