@@ -203,8 +203,8 @@ export function ClinicSwitcher() {
 
       {/* Register New Doctor/Clinic Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-2 sm:p-4 flex items-start sm:items-center justify-center">
+          <div className="relative bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl flex flex-col my-3 sm:my-auto max-h-[88vh] overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 sm:p-5 border-b border-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent shrink-0">
               <div className="flex items-center gap-3">
@@ -285,16 +285,17 @@ export function ClinicSwitcher() {
                       المسار السريري التخصصي <span className="text-destructive">*</span>
                     </label>
                     <select
-                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer text-start"
                       value={formData.specialty_type}
                       onChange={(e) => setFormData({ ...formData, specialty_type: e.target.value })}
+                      dir="rtl"
                     >
-                      <option value="cardiology_general">🩺 الجراحة العامة والباطنية (Vitals & Surgery)</option>
-                      <option value="dentistry">🦷 طب وجراحة الأسنان (Tooth Chart)</option>
-                      <option value="obgyn">🌸 النسائية والتوليد والسونار (Pregnancy & Sonar)</option>
-                      <option value="ophthalmology">👁️ العيون والبصريات (Eye Refraction)</option>
-                      <option value="pediatrics">👶 طب الأطفال واللقاحات (Growth & Vaccines)</option>
-                      <option value="dermatology">✨ الجلدية والليزر والتجميل (Laser & Botox)</option>
+                      <option value="cardiology_general">🩺 الجراحة العامة والباطنية والقلب</option>
+                      <option value="dentistry">🦷 طب وجراحة الفم والأسنان</option>
+                      <option value="obgyn">🌸 النسائية والتوليد والسونار</option>
+                      <option value="ophthalmology">👁️ طب وجراحة العيون والبصريات</option>
+                      <option value="pediatrics">👶 طب الأطفال وحديثي الولادة واللقاحات</option>
+                      <option value="dermatology">✨ الأمراض الجلدية والليزر والتجميل</option>
                     </select>
                   </div>
 
@@ -304,7 +305,7 @@ export function ClinicSwitcher() {
                       المسمى واللقب الطبي
                     </label>
                     <Input
-                      placeholder="مثال: الجراحة العامة والناظورية"
+                      placeholder="مثال: أخصائي الجراحة العامة والناظورية"
                       value={formData.specialty}
                       onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
                     />
