@@ -129,10 +129,17 @@ export default function AppointmentsPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch("/api/appointments", {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (currentClinic?.id) {
+        headers["x-clinic-id"] = currentClinic.id;
+      }
+      const res = await fetch(`/api/appointments?clinic_id=${currentClinic?.id || ""}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        headers,
+        body: JSON.stringify({
+          ...formData,
+          clinic_id: currentClinic?.id,
+        }),
       });
 
       if (!res.ok) {
@@ -185,11 +192,16 @@ export default function AppointmentsPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch("/api/appointments", {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (currentClinic?.id) {
+        headers["x-clinic-id"] = currentClinic.id;
+      }
+      const res = await fetch(`/api/appointments?clinic_id=${currentClinic?.id || ""}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           id: editingApt.id,
+          clinic_id: currentClinic?.id,
           service_id: editFormData.service_id,
           start_time: new Date(editFormData.start_time).toISOString(),
           notes: editFormData.notes,
@@ -217,10 +229,14 @@ export default function AppointmentsPage() {
   // 4. Quick Status Change (Confirm, Cancel, Complete, No Show)
   async function handleQuickStatusChange(id: string, newStatus: string) {
     try {
-      const res = await fetch("/api/appointments", {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (currentClinic?.id) {
+        headers["x-clinic-id"] = currentClinic.id;
+      }
+      const res = await fetch(`/api/appointments?clinic_id=${currentClinic?.id || ""}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: newStatus }),
+        headers,
+        body: JSON.stringify({ id, clinic_id: currentClinic?.id, status: newStatus }),
       });
 
       if (res.ok) {
@@ -235,10 +251,14 @@ export default function AppointmentsPage() {
   async function handleSendManualReminder(aptId: string) {
     setIsSendingReminder(aptId);
     try {
-      const res = await fetch("/api/appointments/reminder", {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (currentClinic?.id) {
+        headers["x-clinic-id"] = currentClinic.id;
+      }
+      const res = await fetch(`/api/appointments/reminder?clinic_id=${currentClinic?.id || ""}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ appointment_id: aptId }),
+        headers,
+        body: JSON.stringify({ appointment_id: aptId, clinic_id: currentClinic?.id }),
       });
       const data = await res.json();
       if (res.ok) {

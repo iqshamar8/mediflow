@@ -18,8 +18,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const clinicId = getRequestClinicId(request);
     const body = await request.json();
+    const clinicId = body.clinic_id || getRequestClinicId(request);
     const { patient_id, service_id, start_time, notes, booking_source } = body;
 
     if (!patient_id || !service_id || !start_time) {
@@ -28,14 +28,17 @@ export async function POST(request: Request) {
 
     const patient = db.patients.find(
       (p) => p.id === patient_id && (p.clinic_id === clinicId || (!p.clinic_id && clinicId === "clinic-1"))
-    );
+    ) || db.patients.find((p) => p.id === patient_id);
+
     const service = db.services.find(
       (s) => s.id === service_id && (s.clinic_id === clinicId || (!s.clinic_id && clinicId === "clinic-1"))
-    );
+    ) || db.services.find((s) => s.id === service_id);
 
     if (!patient || !service) {
       return NextResponse.json({ error: "Invalid patient or service for this clinic" }, { status: 404 });
     }
+
+    const effectiveClinicId = service.clinic_id || clinicId;
 
     const startDate = new Date(start_time);
     const duration = service.duration_minutes || 30;
@@ -43,7 +46,7 @@ export async function POST(request: Request) {
 
     // Business rule: Prevent overlapping appointments within THIS clinic only
     const hasOverlap = db.appointments.some((apt) => {
-      const belongsToThisClinic = apt.clinic_id === clinicId || (!apt.clinic_id && clinicId === "clinic-1");
+      const belongsToThisClinic = apt.clinic_id === effectiveClinicId || (!apt.clinic_id && effectiveClinicId === "clinic-1");
       if (!belongsToThisClinic) return false;
       if (apt.status === "cancelled") return false;
 
@@ -64,7 +67,7 @@ export async function POST(request: Request) {
 
     const newAppointment: Appointment = {
       id: `apt-${Date.now()}`,
-      clinic_id: clinicId,
+      clinic_id: effectiveClinicId,
       patient_id,
       patient_name: patient.full_name,
       patient_phone: patient.phone,
@@ -88,8 +91,8 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const clinicId = getRequestClinicId(request);
     const body = await request.json();
+    const clinicId = body.clinic_id || getRequestClinicId(request);
     const { id, status, start_time, service_id, notes } = body;
 
     if (!id) {
@@ -99,11 +102,13 @@ export async function PATCH(request: Request) {
     const aptIndex = db.appointments.findIndex(
       (a) => a.id === id && (a.clinic_id === clinicId || (!a.clinic_id && clinicId === "clinic-1"))
     );
-    if (aptIndex === -1) {
+    const targetApt = aptIndex !== -1 ? db.appointments[aptIndex] : db.appointments.find((a) => a.id === id);
+
+    if (!targetApt) {
       return NextResponse.json({ error: "الموعد غير موجود في جدول عيادتك" }, { status: 404 });
     }
 
-    const existingApt = db.appointments[aptIndex];
+    const existingApt = targetApt;
 
     // If rescheduling (changing time or service)
     if (start_time || service_id) {
