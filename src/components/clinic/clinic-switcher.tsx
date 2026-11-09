@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useClinic } from "@/lib/clinic/context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,11 +22,16 @@ import {
 
 export function ClinicSwitcher() {
   const { currentClinic, clinics, switchClinic, registerClinic } = useClinic();
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [formData, setFormData] = useState({
     doctor_name: "",
@@ -201,10 +207,10 @@ export function ClinicSwitcher() {
         )}
       </div>
 
-      {/* Register New Doctor/Clinic Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-2 sm:p-4 flex items-start sm:items-center justify-center">
-          <div className="relative bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl flex flex-col my-3 sm:my-auto max-h-[88vh] overflow-hidden animate-in zoom-in-95 duration-200">
+      {/* Register New Doctor/Clinic Modal (Portaled to document.body to break out of Header stacking context) */}
+      {isModalOpen && mounted && createPortal(
+        <div className="fixed inset-0 z-[9999] overflow-y-auto bg-black/70 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center animate-in fade-in duration-200" dir="rtl">
+          <div className="relative bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl flex flex-col my-auto max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 sm:p-5 border-b border-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent shrink-0">
               <div className="flex items-center gap-3">
@@ -370,7 +376,8 @@ export function ClinicSwitcher() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
